@@ -1,6 +1,5 @@
 import numpy as np
 from scipy.integrate import dblquad
-from scipy.optimize import root
 from sympy import symbols, diff, cos, sin, sqrt
 
 
@@ -13,15 +12,20 @@ class Prism_properties:
     '''
     def __init__(self, params=None):
         '''Instanstiates prism properties with dictionary
-            
+        '''
+        self.set_params(params)
+        
+    def set_params(self, params):
+        '''set parameters with properties of scanner
+        
            In the dictionary several keys need to be defined
               n  -- refractive index
               facets -- number of polygon facets, should be even
-              wavelenght -- wavelength [nm]
+              wavelength -- wavelength [nm]
               T -- thickness optical plate [mm]
               f_length -- focal length first cylindrical lens [mm]
               d_bundle -- diameter laser bundle [mm]
-              rot_hz -- rotation per second of prism [Hz]
+              rot_hz -- rotations per second of prism [Hz]
               apex_angle -- maximum deviation angle of adjacent sides
                             in degrees
         '''
@@ -31,7 +35,7 @@ class Prism_properties:
                       'wavelength':405,
                       'T': 35,
                       'f_length': 75,
-                      'd_bundle': 1.8,
+                      'd_bundle': 1.2,
                       'rot_hz': 350,
                       # apex angle is 1 arc_minute
                       'apex_angle': 1/60 
@@ -49,7 +53,7 @@ class Prism_properties:
            is used.
         '''
         if not f_numb:
-            f_numb = self.params['f_numb']
+            f_numb=self.params['f_numb']
         # Spot size
         waist=2*self.params['wavelength']/np.pi*f_numb
         waist/=1E3
@@ -66,8 +70,8 @@ class Prism_properties:
            On default, the f-number of the first
            cylindrical lens is used.
         '''
-        waist = self.spot_size(f_numb)
-        raileigh_length = np.pi*waist**2/self.params['wavelength']
+        waist=self.spot_size(f_numb)
+        rayleigh_length=np.pi*waist**2/self.params['wavelength']
         return rayleigh_length
             
     def max_angle_incidence(self):
@@ -75,10 +79,8 @@ class Prism_properties:
 
            If the prism is rotated further than this angle
            the next facet is hit.
-
-           facets -- number of facets of the prism
         '''
-        utiltmax = np.radians(90-(180-360/self.params['facets'])/2) 
+        utiltmax=np.radians(90-(180-360/self.params['facets'])/2) 
         return utiltmax
     
     def max_recommended_angle(self, strehl_ratio=0.71):
@@ -86,13 +88,13 @@ class Prism_properties:
         
            strehl ratio -- minimum required strehl ratio
         '''
-        def strehl(angle):
-            return self.strehl_ratio(angle)-strehl_ratio
-        utilt_max = self.max_angle_incidence()
-        sol = root(strehl, 0)
-        print(strehl(sol.x))
-        input()
-        return root
+        utilt_max=self.max_angle_incidence()
+        iterations=1000
+        for i in range(0, iterations):
+            angle=utilt_max/iterations*i
+            ratio=self.strehl_ratio(angle)
+            if ratio < strehl_ratio:
+                return utilt_max/iterations*(i-1)
         
     def longitudinal_shift(self):
         '''return longitudinal shift in mm of focus bundle
@@ -102,23 +104,18 @@ class Prism_properties:
            is displaced.
            The prism in effect increases the focal length of the lens.
            This effect is mostly independent of the rotation angle.
-
-           n  -- refractive index of the prism
-           T  -- thickness of the optical plate in mm
         '''
         # Wyant page 41 equation 68
         params = self.params
         slong=(params['n']-1)/params['n']*params['T']
         return slong
                
-    def transversal_shift(self, angle, expression=False):
+    def transversal_shift(self, angle):
         '''transversal shift for a given angle of incidence
 
            The transversal shift does not require a focussed bundle.
 
            angle -- rotation angle of prism in radians
-           expression -- return expression and does not evaluate it
-                         at angle
         '''
         # symbol needed for differentation
         x=symbols('x') 
@@ -128,13 +125,10 @@ class Prism_properties:
         x = angle
         # Wyant page 41 equation 70
         expr=T*sin(x)*(1-sqrt((1-sin(x)**2)/(n**2-sin(x)**2)))
-        if expression:
-            return expr
-        else:
-            disp=expr.evalf(subs={x:angle})
-            return disp
+        disp=expr.evalf(subs={x:angle})
+        return disp
     
-    def cross_scan_error(self, focal_distance):
+    def cross_scan_error(self, focal_distance=35):
         '''error orthogonal to scanline 
             
            the sides of the prism are not perfectly parallel
@@ -164,12 +158,14 @@ class Prism_properties:
         '''gives a print out of defining properties 
            of the optical system
         '''
+        T = self.params['T']
+        n = self.params['n']
         utiltmax = self.max_angle_incidence()
         utilt = self.max_recommended_angle()
-        print(self.strehl_ratio(utilt))
-        input()
         dispmax = self.transversal_shift(utiltmax)
-        print(f"The maximum transversal focus shift is {dispmax} mm.")
+        print(f"The maximum transversal focus shift is {dispmax:.2f} mm.")
+        dispused = self.transversal_shift(utilt)
+        print(f"The line length is {dispused:.2f} mm.")
         # the transversal focus shift is dependent on the position plane
         # we use it too calculate the maximum displacement (chain rule)
         #  y=f(x) dx/dt=c   x=ct
@@ -178,22 +174,21 @@ class Prism_properties:
         #         c is the angular rotation speed of the prism (assumed constant)
         #  --> dy/dt=dy/dx(x(t))*c 
         x=symbols('x') 
-        sdisp=diff(self.transversal_shift(0, expression=True),
-                   x)
+        # Wyant page 41 equation 70
+        expr=T*sin(x)*(1-sqrt((1-sin(x)**2)/(n**2-sin(x)**2)))
+        sdisp=diff(expr, x)
         # fractional speed
         fraction=sdisp.evalf(subs={x:0})/sdisp.evalf(subs={x:utilt})
-        print(f"The speed at the center is {round(fraction*100,2)} \
-                % of the speed at the edges.")
+        print(f"The speed at the center is {round(fraction*100,2)}" +
+                " % of the speed at the edges.")
         ang_speed = np.pi*2*self.params['rot_hz']
-        print(ang_speed)
-        print(sdisp.evalf(subs={x:utilt}))
-        input()
-        print(f"The speed at the edges is \
-              {sdisp.evalf(subs={x:utilt})/1000*ang_speed:.2f} m/s.")
-        print(f"The spot radius of the first cylindical lens is {self.spot_size():.2f} \
-                micrometers.")
-        print(f"The Rayleigh range is {self.raileigh_length():.3f} mm.")
+        print(f"The speed at the edges is " +
+              f"{sdisp.evalf(subs={x:utilt})/1000*ang_speed:.2f} m/s.")
+        print(f"The spot radius of the first cylindical lens is {self.spot_size():.2f}"
+                + " micrometers.")
+        print(f"The Rayleigh range is {self.rayleigh_length():.3f} mm.")
         print(f"The Strehl ratio is {self.strehl_ratio(utilt, verbose=True):.2f}")
+        print(f"The cross scan error is {self.cross_scan_error()*1000:.2f} microns")
       
     def strehl_ratio(self, utilt, verbose=False):
         '''returns the strehl ratio of the optical system
@@ -234,9 +229,9 @@ class Prism_properties:
         # We now try to evaluate equation 62, page 37, Wyant
         # First we define two auxiliary functions
         def ws(theta,rho):
-           return f(theta,rho)**2*rho
+            return f(theta,rho)**2*rho
         def w(theta,rho):
-           return f(theta,rho)*rho
+            return f(theta,rho)*rho
         # Hereafter we evaluate the integral, i.e. equation 62
         var=1/np.pi*dblquad(ws,0,1,lambda rho: 0, lambda rho: 2*np.pi)[0]\
         -1/(np.pi**2)*(dblquad(w,0,1,lambda rho: 0, lambda rho: 2*np.pi)[0]**2)
