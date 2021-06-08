@@ -1,11 +1,12 @@
-import numpy as np
-
 from math import pi
 
+import numpy as np
 from pyoptools.raytrace.component import Component 
 from pyoptools.all import CylindricalLens, Ray, RectMirror, material, System, Plot3D
-from library import Polygon
-from analytical import Prism_properties
+
+from prisms.library import Polygon
+from prisms.analytical import Prism_properties
+
 
 class PrismScanner():
     '''defines a prism scanner

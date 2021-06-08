@@ -138,19 +138,28 @@ class Prism_properties:
            parallel to the scanline, this can be resolved 
            with interpolation as it only changes the size 
            and speed along the the scanline.
-            
+
+           Note: If a mirror has a facet to datum error of
+           one degree, the total error is two degrees.
+
            focal distance  -- distance between focal point 
                               and edge prism
         '''
         # https://en.wikipedia.org/wiki/Prism
         # assumes incidence angle and apex angle are both small
-        #  the apex angle is small as adjacent side are almost parallel
+        #  the apex angle is small as adjacent sides are almost parallel
         #  the angle of incidicence small in the orthogonal case 
         #  but not the parallel case
         #  furthermore both sides will have this
         params = self.params
         d_angle = (params['n']-1)*np.radians(params['apex_angle'])
         cross_error = np.tan(d_angle)*focal_distance
+        # a difference with reflective polygon scanning is that you
+        # hit 2 sides and not one, in the above it is assumed one side is perfect
+        # you might fix this by counting this as a tilted parallel plate + 
+        # cross scan error
+        # the current fix is multiplication by 2
+        print("WARNING: It is between 0.5 and 1 of this error, see comments in code.")
         cross_error *= 2
         return cross_error
 
@@ -167,7 +176,7 @@ class Prism_properties:
         dispused = self.transversal_shift(utilt)
         print(f"The line length is {dispused:.2f} mm.")
         # the transversal focus shift is dependent on the position plane
-        # we use it too calculate the maximum displacement (chain rule)
+        # we use it to calculate the maximum displacement (chain rule)
         #  y=f(x) dx/dt=c   x=ct
         #    here y is the position of the spot in one dimension measured in mm
         #         x is the angle as a position of the time
