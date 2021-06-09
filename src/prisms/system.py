@@ -18,14 +18,27 @@ class PrismScanner():
         self.S = self.system()
         self.wavelength = wavelength
         self.p = Prism_properties()
+        # converts name to position
+        # CL is cylinder lens
+        self.naming = {'CL1': 'C0',
+                       'prism': 'C1',
+                       'CL2': 'C2',
+                       'mirror': 'C3'}
+        # default properties chief ray
+        self.ray_prop = {'pos': [0, 0, 0],
+                         'dir': [0, 1, 0],
+                         'wavelength': self.wavelength}
+        # default view settings for py3js renders
+        self.view_set = {'center': (0, 0, 0),
+                         'size': (150, 150),
+                         'scale': 3,
+                         'rot': [(np.radians(40), 0, 0)]}
 
-    def system(self, angle=0):
+    def system(self):
         '''defines optical system using pyoptools
 
         System is ordered upon distance from optical source.
         Closest component comes first.
-
-        angle -- angle in degrees of prism
         '''
         # Cylinder LENS 1 Edmund optics 68-048
         # BFL + CT = 73.68 + 2 = 75.68
@@ -56,22 +69,27 @@ class PrismScanner():
         # Optical system
         shift = 10
         complist = [(CL_lens1, (0, shift, 0), (0.5*pi, 0, pi)),
-                    (prism, (0, 10+15+shift, 0), (0, 0, -np.radians(angle))),
+                    (prism, (0, 10+15+shift, 0), (0, 0, 0)),
                     (CL_lens2, (0, 50+shift, 0), (0.5*pi, 0.5*pi, pi)),
                     (M1, (-10, 60+shift, 0), (0.5*pi, 0.5*pi, -0.25*pi))]
         S = System(complist=complist, n=1)
         return S
 
-    def set_angle(self, angle=0):
-        '''sets the angle of the prism to a given angle
+    def set_orientation(self, comp, position=None, rotation=None, reset=True):
+        '''place comp at position and rotation
 
-           angle -- rotation angle in degrees of prism
+           comp     -- name of component; CL1, prism, CL2, mirror
+           position -- [x, y, z] position of component
+           rotation -- [rx, ry, rz] rotation of component
         '''
-        self.S.complist['C1'][-1][-1] = np.radians(angle)
-        self.S.reset()
-        self.S.ray_add(Ray(pos=[0, 0, 0],
-                       dir=[0, 1, 0],
-                       wavelength=self.wavelength))
+        naming = self.naming
+        if position is not None:
+            self.S.complist[naming[comp]][-2][:] = position
+        if rotation is not None:
+            self.S.complist[naming[comp]][-1][:] = rotation
+        if reset:
+            self.S.reset()
+        self.S.ray_add(Ray(**self.ray_prop))
         self.S.propagate()
 
     def plot(self, angle=0):
@@ -79,12 +97,11 @@ class PrismScanner():
 
             angle -- rotation angle in degrees of prism
         '''
-        self.set_angle(angle)
+        self.set_orientation('prism', rotation=(0, 0, np.radians(angle)))
+        self.S.ray_add(Ray(**self.ray_prop))
+        self.S.propagate()
         return Plot3D(self.S,
-                      center=(0, 0, 0),
-                      size=(250, 100),
-                      scale=3,
-                      rot=[(np.radians(40), 0, 0)])
+                      **self.view_set)
 
     def show_five_rays(self):
         mirror_angles = self.find_mirror()
@@ -93,26 +110,21 @@ class PrismScanner():
         self.S.reset()
         lst = mirror_angles + scan_angles
         for angle in lst:
-            self.S.complist['C1'][-1][-1] = np.radians(angle)
-            self.S.ray_add(Ray(pos=[0, 0, 0],
-                               dir=[0, 1, 0],
-                               wavelength=self.wavelength))
-            self.S.propagate()
+            self.set_orientation('prism',
+                                 rotation=(0, 0, np.radians(angle)),
+                                 reset=False)
         return Plot3D(self.S,
-                      center=(0, 0, 0),
-                      size=(250, 100),
-                      scale=3,
-                      rot=[(np.radians(40), 0, 0)])
+                      **self.view_set)
 
     def find_mirror(self):
         ''' determines angle upon which mirror is hit
         '''
         hit_angle = []
-        mirror = self.S.complist['C3'][0]
+        mirror = self.S.complist[self.naming['mirror']][0]
         max_angle = int(round(np.degrees(self.p.max_angle_incidence())))
         # course search
         for angle in range(-max_angle, max_angle, 1):
-            self.set_angle(angle)
+            self.set_orientation('prism', rotation=(0, 0, np.radians(angle)))
             if len(mirror.hit_list):
                 hit_angle.append(angle)
         # optimize
@@ -120,12 +132,13 @@ class PrismScanner():
         high = max(hit_angle)
         new = True
         while new:
-            self.set_angle(low-0.1)
+            self.set_orientation('prism', rotation=(0, 0, np.radians(low-0.1)))
             if len(mirror.hit_list):
                 low = low-0.1
             else:
                 new = False
-            self.set_angle(high+0.1)
+            self.set_orientation('prism',
+                                 rotation=(0, 0, np.radians(high+0.1)))
             if len(mirror.hit_list):
                 high = high+0.1
                 new = True
