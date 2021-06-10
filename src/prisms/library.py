@@ -8,7 +8,8 @@ from pyoptools.raytrace.shape import Rectangular, Triangular
 class Polygon(Component):
     '''defines regular polygon prism
 
-    Defines component containing a regular glass polygon
+    Defines component containing a polygon shape
+    The center of mass of the polygon is at the origin
 
     sides        -- number of sides
     height       -- height of polygon

@@ -1,4 +1,5 @@
 from math import pi
+import pickle
 
 import numpy as np
 from pyoptools.all import (CylindricalLens, Ray, RectMirror,
@@ -92,10 +93,29 @@ class PrismScanner():
         self.S.ray_add(Ray(**self.ray_prop))
         self.S.propagate()
 
-    def plot(self, angle=0):
-        ''' plot the system with a ray
+    def save_system(self, fname):
+        '''save the system
 
-            angle -- rotation angle in degrees of prism
+           It is hard to save threejs plot objects as
+           image, as a result this is used.
+
+           fname -- filename to save system to
+        '''
+        with open(fname, 'wb') as file:
+            pickle.dump(self.S, file)
+
+    def load_system(self, fname):
+        '''plot the system with a ray
+
+           fname -- filename to load system from
+        '''
+        with open(fname, 'rb') as file:
+            pickle.load(file)
+
+    def plot(self, angle=0, save=False):
+        '''plot the system with a ray
+
+           angle -- rotation angle in degrees of prism
         '''
         self.set_orientation('prism', rotation=(0, 0, np.radians(angle)))
         self.S.ray_add(Ray(**self.ray_prop))

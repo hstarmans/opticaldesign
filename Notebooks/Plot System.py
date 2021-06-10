@@ -35,4 +35,13 @@ print(hit_angles)
 
 p.show_five_rays()
 
+# As FreeCAD modifies the system, its state can be stored from there
+# and loaded here.
 
+p.save_system('test.pkl')
+p.load_system('test.pkl')
+
+# In FreeCAD, the thickness of the cylindrical lens is required to
+# send over the correct position.
+
+p.S.complist[p.naming['CL1']][0].thickness
