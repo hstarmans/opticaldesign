@@ -6,7 +6,7 @@ There are two representions;
  - pyOpTools: description of the optical system in [pyOpTools](https://github.com/cihologramas/pyoptools)
 
 In the old folder, there is also a representation;
- - rayOpt: description of the optical system in [rayOPt]((https://github.com/jordens/rayopt)
+ - rayOpt: description of the optical system in [rayOpt](https://github.com/jordens/rayopt)
 
 ```console
 python3 setup.py develop --user
