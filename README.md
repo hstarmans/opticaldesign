@@ -23,6 +23,8 @@ Several issues
     - mitigated by assuming parallel bundle  
 
 ### Limitations Pyoptools
+ - there is no proper bridge for object from FreeCad to pyoptools
+ - I have problems rotating the in z-direction in the PyThreejs viewer
  - If light hits the prism at an edge corner, it does not know what to do and does not throw an error.
  - cylindrical lenses, do not have side surfaces in pyoptools
  - it is not possible to load cylindrical lenses directly from Edmund's library
