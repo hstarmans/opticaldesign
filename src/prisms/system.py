@@ -26,14 +26,15 @@ class PrismScanner():
                        'CL2': 'C2',
                        'mirror': 'C3'}
         # default properties chief ray
-        self.ray_prop = {'pos': [0, 0, 0],
-                         'dir': [0, 1, 0],
+        self.ray_prop = {'pos': [10, 0, 0],
+                         'dir': [-1, 0, 0],
                          'wavelength': self.wavelength}
         # default view settings for py3js renders
         self.view_set = {'center': (0, 0, 0),
                          'size': (150, 150),
                          'scale': 3,
-                         'rot': [(np.radians(40), 0, 0)]}
+                         # rotation is broken, doesn't work well
+                         'rot': [(0, 0, 0)]}
 
     def system(self):
         '''defines optical system using pyoptools
@@ -68,11 +69,13 @@ class PrismScanner():
                         reflectivity=1)
 
         # Optical system
-        shift = 10
-        complist = [(CL_lens1, (0, shift, 0), (0.5*pi, 0, pi)),
-                    (prism, (0, 10+15+shift, 0), (0, 0, 0)),
-                    (CL_lens2, (0, 50+shift, 0), (0.5*pi, 0.5*pi, pi)),
-                    (M1, (-10, 60+shift, 0), (0.5*pi, 0.5*pi, -0.25*pi))]
+        # This rotation as this simplifies interaction with FreeCAD
+        # Here the laser points in the -x direction
+        # I am not able to rotate ThreeJS view in Z, so it is not optimal
+        complist = [(CL_lens1, (0, 0, 0), (0.5*pi, 0, -0.5*pi)),
+                    (prism, (-10-15, 0, 0), (0, 0, 0)),
+                    (CL_lens2, (-50, 0, 0), (0.5*pi, 0.5*pi, -0.5*pi)),
+                    (M1, (-60, -10, 0), (0.5*pi, 0.5*pi, 0.25*pi))]
         S = System(complist=complist, n=1)
         return S
 
@@ -110,7 +113,7 @@ class PrismScanner():
            fname -- filename to load system from
         '''
         with open(fname, 'rb') as file:
-            pickle.load(file)
+            self.S = pickle.load(file)
 
     def plot(self, angle=0, save=False):
         '''plot the system with a ray
