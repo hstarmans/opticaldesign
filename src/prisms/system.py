@@ -157,6 +157,9 @@ class PrismScanner():
             self.set_orientation('prism', rotation=(0, 0, np.radians(angle)))
             if len(mirror.hit_list):
                 hit_angle.append(angle)
+
+        if not len(hit_angle):
+            return hit_angle
         # optimize
         low = min(hit_angle)
         high = max(hit_angle)
