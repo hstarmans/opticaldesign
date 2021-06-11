@@ -2,7 +2,7 @@
 
 Package contains optical similations and calculations for prisms.
 There are two representions;
- - Analytical:  properties of prism based upon pure math and physics
+ - Analytical:  properties of prisms based upon pure math and physics
  - pyOpTools: description of the optical system in [pyOpTools](https://github.com/cihologramas/pyoptools)
 
 In the old folder, there is also a representation;

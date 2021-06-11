@@ -86,11 +86,11 @@ class PrismScanner():
            position -- [x, y, z] position of component
            rotation -- [rx, ry, rz] rotation of component
         '''
-        naming = self.naming
+        target = self.S.complist[self.naming[comp]]
         if position is not None:
-            self.S.complist[naming[comp]][-2][:] = position
+            target[-2][:] = position
         if rotation is not None:
-            self.S.complist[naming[comp]][-1][:] = rotation
+            target[-1][:] = rotation
         if reset:
             self.S.reset()
         self.S.ray_add(Ray(**self.ray_prop))
