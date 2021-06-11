@@ -123,7 +123,13 @@ class PrismScanner():
         return Plot3D(self.S,
                       **self.view_set)
 
-    def show_five_rays(self):
+    def draw_five_rays(self):
+        '''draws five chief rays
+
+           chief rays which hit sides mirror
+           chief rays which hit side scanline
+           chief rays which are unperturbered
+        '''
         mirror_angles = self.find_mirror()
         max_scan_angle = np.degrees(self.p.max_recommended_angle())
         scan_angles = [-max_scan_angle, max_scan_angle, 0]
@@ -133,6 +139,10 @@ class PrismScanner():
             self.set_orientation('prism',
                                  rotation=(0, 0, np.radians(angle)),
                                  reset=False)
+
+    def show_five_rays(self):
+        '''draws five chief rays and returns plot'''
+        self.draw_five_rays()
         return Plot3D(self.S,
                       **self.view_set)
 
