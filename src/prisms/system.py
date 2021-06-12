@@ -24,7 +24,8 @@ class PrismScanner():
         self.naming = {'CL1': 'C0',
                        'prism': 'C1',
                        'CL2': 'C2',
-                       'mirror': 'C3'}
+                       'mirror': 'C3',
+                       'diode': 'C4'}
         # default properties chief ray
         self.ray_prop = {'pos': [10, 0, 0],
                          'dir': [-1, 0, 0],
@@ -65,7 +66,15 @@ class PrismScanner():
                                    material=material.schott["N-BK7"])
 
         # Mirror
-        M1 = RectMirror(size=(10, 10, 2.0),
+        # Mirror is actually 2 mm thick, but want to prevent
+        # hitting side is counted as hit
+        M1 = RectMirror(size=(10, 10, 0.01),
+                        reflectivity=1)
+
+        # Photodiode BPW34
+        # Photiodiode is actually 3.2 mm thick, but want to prevent
+        # hitting side is counted as hit
+        PD = RectMirror(size=(5.4, 4, 0.01),
                         reflectivity=1)
 
         # Optical system
@@ -75,7 +84,8 @@ class PrismScanner():
         complist = [(CL_lens1, (0, 0, 0), (0.5*pi, 0, -0.5*pi)),
                     (prism, (-10-15, 0, 0), (0, 0, 0)),
                     (CL_lens2, (-50, 0, 0), (0.5*pi, 0.5*pi, -0.5*pi)),
-                    (M1, (-60, -10, 0), (0.5*pi, 0.5*pi, 0.25*pi))]
+                    (M1, (-60, -10, 0), (0.5*pi, 0.5*pi, 0.25*pi)),
+                    (PD, (-60, -20, 0), (0.5*pi, 0.5*pi, 0))]
         S = System(complist=complist, n=1)
         return S
 
@@ -126,14 +136,24 @@ class PrismScanner():
         return Plot3D(self.S,
                       **self.view_set)
 
-    def draw_five_rays(self):
-        '''draws five chief rays
+    def draw_key_rays(self):
+        '''draws six chief rays
 
            chief rays which hit sides mirror
            chief rays which hit side scanline
+           chief rays which hit side photodiode
            chief rays which are unperturbered
         '''
-        mirror_angles = self.find_mirror()
+        mirror_angles = self.find_object('mirror')
+        if mirror_angles:
+            diode_angles = self.find_object('diode')
+            if not diode_angles:
+                print("Can't hit diode with laser")
+            else:
+                mirror_angles += diode_angles
+        else:
+            print("Can't hit mirror with laser")
+
         max_scan_angle = np.degrees(self.p.max_recommended_angle())
         scan_angles = [-max_scan_angle, max_scan_angle, 0]
         self.S.reset()
@@ -143,22 +163,27 @@ class PrismScanner():
                                  rotation=(0, 0, np.radians(angle)),
                                  reset=False)
 
-    def show_five_rays(self):
+    def show_key_rays(self):
         '''draws five chief rays and returns plot'''
-        self.draw_five_rays()
+        self.draw_key_rays()
         return Plot3D(self.S,
                       **self.view_set)
 
-    def find_mirror(self):
-        ''' determines angle upon which mirror is hit
+    def find_object(self, name):
+        '''determines min and max scanangle upon which target
+           is hit
+
+           name -- target to find
+
+           return minimum and maximum hit angle
         '''
         hit_angle = []
-        mirror = self.S.complist[self.naming['mirror']][0]
+        target = self.S.complist[self.naming[name]][0]
         max_angle = int(round(np.degrees(self.p.max_angle_incidence())))
         # course search
         for angle in range(-max_angle, max_angle, 1):
             self.set_orientation('prism', rotation=(0, 0, np.radians(angle)))
-            if len(mirror.hit_list):
+            if len(target.hit_list):
                 hit_angle.append(angle)
 
         if not len(hit_angle):
@@ -169,13 +194,13 @@ class PrismScanner():
         new = True
         while new:
             self.set_orientation('prism', rotation=(0, 0, np.radians(low-0.1)))
-            if len(mirror.hit_list):
+            if len(target.hit_list):
                 low = low-0.1
             else:
                 new = False
             self.set_orientation('prism',
                                  rotation=(0, 0, np.radians(high+0.1)))
-            if len(mirror.hit_list):
+            if len(target.hit_list):
                 high = high+0.1
                 new = True
             else:
