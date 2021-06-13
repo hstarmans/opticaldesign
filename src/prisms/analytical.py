@@ -83,18 +83,37 @@ class Prism_properties:
         utiltmax = np.radians(90-(180-360/self.params['facets'])/2)
         return utiltmax
 
-    def max_recommended_angle(self, strehl_ratio=0.71):
+    def max_recommended_angle(self, strehl_ratio=0.71, min_fraction=0.8, 
+                              verbose=False):
         '''returns the maximum recommended angle of incidence
-
+        
+           In principle, you can expose at Strehl limit and 
+           compensate for optical power by modulating the laser
+            
            strehl ratio -- minimum required strehl ratio
+           fraction     -- minimum percentage power at edges
+           verbose      -- prints out logic
         '''
         utilt_max = self.max_angle_incidence()
         iterations = 1000
-        for i in range(0, iterations):
-            angle = utilt_max/iterations*i
-            ratio = self.strehl_ratio(angle)
-            if ratio < strehl_ratio:
-                return utilt_max/iterations*(i-1)
+        
+        def minimize(func, threshold):
+            for i in range(0, iterations):
+                angle = utilt_max/iterations*i
+                val = func(angle)
+                if val < threshold:
+                    return utilt_max/iterations*(i-1)
+        utilt_strehl = minimize(self.strehl_ratio, strehl_ratio)
+        utilt_fraction = minimize(self.speed_edges, min_fraction)
+                
+        if verbose:
+            if utilt_fraction < utilt_strehl:
+                print('Exposure is power limited')
+            else:
+                print('Exposure is Strehl limited')
+            print(f'Strehl limit is {utilt_strehl:.2f} radians')
+            print(f'Power limit is {utilt_fraction:.2f} radians')
+        return min(utilt_fraction, utilt_strehl)
 
     def longitudinal_shift(self):
         '''return longitudinal shift in mm of focus bundle
@@ -161,23 +180,18 @@ class Prism_properties:
         # this as a tilted parallel plate +
         # cross scan error
         # the current fix is multiplication by 2
-        print("WARNING: It is between 0.5 and 1 of this error" +
+        print("WARNING CROSS: It is between 0.5 and 1 of this error" +
               " see comments in code.")
         cross_error *= 2
         return cross_error
 
-    def print_properties(self):
-        '''gives a print out of defining properties
-           of the optical system
+    def speed_edges(self, utilt, verbose=False):
+        '''speed along is not uniform
+        
+           utilt   -- tilt angle in radians
+           verbose -- if verbose prints out properties
+           return fraction
         '''
-        T = self.params['T']
-        n = self.params['n']
-        utiltmax = self.max_angle_incidence()
-        utilt = self.max_recommended_angle()
-        dispmax = self.transversal_shift(utiltmax)
-        print(f"The maximum transversal focus shift is {dispmax:.2f} mm.")
-        dispused = self.transversal_shift(utilt)
-        print(f"The line length is {dispused:.2f} mm.")
         # the transversal focus shift is dependent on the position plane
         # we use it to calculate the maximum displacement (chain rule)
         #  y=f(x) dx/dt=c   x=ct
@@ -186,23 +200,39 @@ class Prism_properties:
         #         c is the angular rotation speed of
         #         the prism (assumed constant)
         #  --> dy/dt=dy/dx(x(t))*c
+        T = self.params['T']
+        n = self.params['n']
         x = symbols('x')
         # Wyant page 41 equation 70
         expr = T*sin(x)*(1-sqrt((1-sin(x)**2)/(n**2-sin(x)**2)))
         sdisp = diff(expr, x)
         # fractional speed
         fraction = sdisp.evalf(subs={x: 0})/sdisp.evalf(subs={x: utilt})
-        print(f"The speed at the center is {round(fraction*100,2)}" +
-              " % of the speed at the edges.")
-        ang_speed = np.pi*2*self.params['rot_hz']
-        print("The speed at the edges is " +
-              f"{sdisp.evalf(subs={x:utilt})/1000*ang_speed:.2f} m/s.")
+        if verbose:
+            print(f"The speed at the center is {round(fraction*100,2)}" +
+                  " % of the speed at the edges.")
+            ang_speed = np.pi*2*self.params['rot_hz']
+            print("The speed at the edges is " +
+                  f"{sdisp.evalf(subs={x:utilt})/1000*ang_speed:.2f} m/s.")
+        return fraction
+        
+    def print_properties(self):
+        '''gives a print out of defining properties
+           of the optical system
+        '''
+        utiltmax = self.max_angle_incidence()
+        utilt = self.max_recommended_angle(verbose=True)
+        dispmax = self.transversal_shift(utiltmax)
+        print(f"The maximum line length is {2*dispmax:.2f} mm.")
+        dispused = self.transversal_shift(utilt)
+        self.speed_edges(utilt, verbose=True)
+        print(f"The line length is {2*dispused:.2f} mm.")
         print("The spot radius of the first cylindical lens is " +
               f"{self.spot_size():.2f} micrometers.")
         print(f"The Rayleigh range is {self.rayleigh_length():.3f} mm.")
-        print("The Strehl ratio is" +
+        print("The Strehl ratio is " +
               f"{self.strehl_ratio(utilt, verbose=True):.2f}")
-        print("The cross scan error is" +
+        print("The cross scan error is " +
               f"{self.cross_scan_error()*1000:.2f} microns")
 
     def strehl_ratio(self, utilt, verbose=False):

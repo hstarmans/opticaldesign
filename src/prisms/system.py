@@ -66,16 +66,15 @@ class PrismScanner():
                                    material=material.schott["N-BK7"])
 
         # Mirror
-        # Mirror is actually 2 mm thick, but want to prevent
-        # hitting side is counted as hit
-        M1 = RectMirror(size=(10, 10, 0.01),
+        # Mirror, is only coated on side; it is not symmetric!
+        M1 = RectMirror(size=(10, 10, 2),
                         reflectivity=1)
-
+        
         # Photodiode BPW34
         # Photiodiode is actually 3.2 mm thick, but want to prevent
         # hitting side is counted as hit
         PD = RectMirror(size=(5.4, 4, 0.01),
-                        reflectivity=1)
+                        reflectivity=0)
 
         # Optical system
         # This rotation as this simplifies interaction with FreeCAD
@@ -84,7 +83,7 @@ class PrismScanner():
         complist = [(CL_lens1, (0, 0, 0), (0.5*pi, 0, -0.5*pi)),
                     (prism, (-10-15, 0, 0), (0, 0, 0)),
                     (CL_lens2, (-50, 0, 0), (0.5*pi, 0.5*pi, -0.5*pi)),
-                    (M1, (-60, -10, 0), (0.5*pi, 0.5*pi, 0.25*pi)),
+                    (M1, (-60, -10, 0), (0.5*pi, 0.5*pi, 0.25*pi+pi)),
                     (PD, (-60, -20, 0), (0.5*pi, 0.5*pi, 0))]
         S = System(complist=complist, n=1)
         return S
@@ -115,7 +114,7 @@ class PrismScanner():
            fname -- filename to save system to
         '''
         with open(fname, 'wb') as file:
-            pickle.dump(self.S, file)
+            pickle.dump([self.ray_prop, self.S], file)
 
     def load_system(self, fname):
         '''plot the system with a ray
@@ -123,7 +122,7 @@ class PrismScanner():
            fname -- filename to load system from
         '''
         with open(fname, 'rb') as file:
-            self.S = pickle.load(file)
+            [self.ray_prop, self.S] = pickle.load(file)
 
     def plot(self, angle=0, save=False):
         '''plot the system with a ray
@@ -139,25 +138,17 @@ class PrismScanner():
     def draw_key_rays(self):
         '''draws six chief rays
 
-           chief rays which hit sides mirror
            chief rays which hit side scanline
            chief rays which hit side photodiode
            chief rays which are unperturbered
         '''
-        mirror_angles = self.find_object('mirror')
-        if mirror_angles:
-            diode_angles = self.find_object('diode')
-            if not diode_angles:
-                print("Can't hit diode with laser")
-            else:
-                mirror_angles += diode_angles
-        else:
-            print("Can't hit mirror with laser")
-
+        diode_angles = self.find_object('diode')
+        if not diode_angles:
+            print("Can't hit diode with laser")
         max_scan_angle = np.degrees(self.p.max_recommended_angle())
         scan_angles = [-max_scan_angle, max_scan_angle, 0]
         self.S.reset()
-        lst = mirror_angles + scan_angles
+        lst = diode_angles + scan_angles
         for angle in lst:
             self.set_orientation('prism',
                                  rotation=(0, 0, np.radians(angle)),
@@ -172,9 +163,9 @@ class PrismScanner():
     def find_object(self, name):
         '''determines min and max scanangle upon which target
            is hit
-
+        
            name -- target to find
-
+           
            return minimum and maximum hit angle
         '''
         hit_angle = []
@@ -184,6 +175,9 @@ class PrismScanner():
         for angle in range(-max_angle, max_angle, 1):
             self.set_orientation('prism', rotation=(0, 0, np.radians(angle)))
             if len(target.hit_list):
+                # in case of mirror we only want specific side
+                # you can get specific sides as follows
+                #if target.hit_list[0][-1].orig_surf[-1] != 'S2':
                 hit_angle.append(angle)
 
         if not len(hit_angle):
