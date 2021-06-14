@@ -1,9 +1,10 @@
 from math import pi
 import pickle
+from copy import deepcopy
 
 import numpy as np
 from pyoptools.all import (CylindricalLens, Ray, RectMirror,
-                           material, System, Plot3D)
+                           material, System, Plot3D, nearest_points)
 
 from prisms.library import Polygon
 from prisms.analytical import Prism_properties
@@ -44,14 +45,17 @@ class PrismScanner():
         Closest component comes first.
         '''
         # Cylinder LENS 1 Edmund optics 68-048
-        # BFL + CT = 73.68 + 2 = 75.68
+        # https://www.gophotonics.com/products/
+        # optical-lenses/edmund-optics-inc/33-15-68-048
         CL_lens1 = CylindricalLens(size=(12.5, 25),
                                    thickness=2,
-                                   curvature_s1=1./75.68,
+                                   curvature_s1=1./38.76,
                                    curvature_s2=0,
                                    material=material.schott["N-BK7"])
 
         # Prism
+        # https://www.gophotonics.com/products/
+        # optical-lenses/edmund-optics-inc/33-15-68-048
         prism = Polygon(sides=4,
                         height=2,
                         inner_radius=15,
@@ -61,7 +65,7 @@ class PrismScanner():
         # BFL + CT = 23.02 + 3
         CL_lens2 = CylindricalLens(size=(12.5, 25),
                                    thickness=3,
-                                   curvature_s1=1./26.02,
+                                   curvature_s1=1./12.92,
                                    curvature_s2=0,
                                    material=material.schott["N-BK7"])
 
@@ -69,7 +73,7 @@ class PrismScanner():
         # Mirror, is only coated on side; it is not symmetric!
         M1 = RectMirror(size=(10, 10, 2),
                         reflectivity=1)
-        
+
         # Photodiode BPW34
         # Photiodiode is actually 3.2 mm thick, but want to prevent
         # hitting side is counted as hit
@@ -104,6 +108,30 @@ class PrismScanner():
             self.S.reset()
         self.S.ray_add(Ray(**self.ray_prop))
         self.S.propagate()
+
+    def focal_point(self, cyllens1):
+        '''returns focal point of cylinder lens
+
+           cyllens1  -- True, focal point cyl lens 1
+                        False, focal point cyl lens 2
+        '''
+        dct1 = deepcopy(self.ray_prop)
+        dct2 = deepcopy(self.ray_prop)
+        if cyllens1:
+            dct1['pos'][1] = 5
+            dct1['pos'][1] = -5
+        else:
+            dct1['pos'][2] = 5
+            dct1['pos'][2] = -5
+        self.S.reset()
+        straal1 = Ray(**dct1)
+        straal2 = Ray(**dct2)
+        self.S.ray_add(straal1)
+        self.S.ray_add(straal2)
+        self.S.propagate()
+        dist = nearest_points(straal1.get_final_rays()[0],
+                              straal2.get_final_rays()[0])[0][0]
+        return dist
 
     def save_system(self, fname):
         '''save the system
@@ -163,9 +191,9 @@ class PrismScanner():
     def find_object(self, name):
         '''determines min and max scanangle upon which target
            is hit
-        
+
            name -- target to find
-           
+
            return minimum and maximum hit angle
         '''
         hit_angle = []
@@ -177,7 +205,7 @@ class PrismScanner():
             if len(target.hit_list):
                 # in case of mirror we only want specific side
                 # you can get specific sides as follows
-                #if target.hit_list[0][-1].orig_surf[-1] != 'S2':
+                # if target.hit_list[0][-1].orig_surf[-1] != 'S2':
                 hit_angle.append(angle)
 
         if not len(hit_angle):
