@@ -38,8 +38,7 @@ class Prism_properties:
                       'd_bundle': 1.2,
                       'rot_hz': 350,
                       # apex angle is 1 arc_minute
-                      'apex_angle': 1/60
-            }
+                      'apex_angle': 1/60}
         # f_number of the first cylindrical lens
         params['f_numb'] = params['f_length'] / params['d_bundle']
         self.params = params
@@ -83,20 +82,20 @@ class Prism_properties:
         utiltmax = np.radians(90-(180-360/self.params['facets'])/2)
         return utiltmax
 
-    def max_recommended_angle(self, strehl_ratio=0.71, min_fraction=0.8, 
+    def max_recommended_angle(self, strehl_ratio=0.71, min_fraction=0.8,
                               verbose=False):
         '''returns the maximum recommended angle of incidence
-        
-           In principle, you can expose at Strehl limit and 
+
+           In principle, you can expose at Strehl limit and
            compensate for optical power by modulating the laser
-            
+
            strehl ratio -- minimum required strehl ratio
            fraction     -- minimum percentage power at edges
            verbose      -- prints out logic
         '''
         utilt_max = self.max_angle_incidence()
         iterations = 1000
-        
+
         def minimize(func, threshold):
             for i in range(0, iterations):
                 angle = utilt_max/iterations*i
@@ -105,7 +104,7 @@ class Prism_properties:
                     return utilt_max/iterations*(i-1)
         utilt_strehl = minimize(self.strehl_ratio, strehl_ratio)
         utilt_fraction = minimize(self.speed_edges, min_fraction)
-                
+
         if verbose:
             if utilt_fraction < utilt_strehl:
                 print('Exposure is power limited')
@@ -187,7 +186,7 @@ class Prism_properties:
 
     def speed_edges(self, utilt, verbose=False):
         '''speed along is not uniform
-        
+
            utilt   -- tilt angle in radians
            verbose -- if verbose prints out properties
            return fraction
@@ -215,7 +214,7 @@ class Prism_properties:
             print("The speed at the edges is " +
                   f"{sdisp.evalf(subs={x:utilt})/1000*ang_speed:.2f} m/s.")
         return fraction
-        
+
     def print_properties(self):
         '''gives a print out of defining properties
            of the optical system
