@@ -3,7 +3,7 @@ import pickle
 from copy import deepcopy
 
 import numpy as np
-from pyoptools.all import (CylindricalLens, Ray, RectMirror,
+from pyoptools.all import (CylindricalLens, Ray, RectMirror, CCD,
                            material, System, Plot3D, nearest_points)
 
 from prisms.library import Polygon
@@ -25,8 +25,9 @@ class PrismScanner():
         self.naming = {'CL1': 'C0',
                        'prism': 'C1',
                        'CL2': 'C2',
-                       'mirror': 'C3',
-                       'diode': 'C4'}
+                       'ccd': 'C3',
+                       'mirror': 'C4',
+                       'diode': 'C5'}
         # default properties chief ray
         self.ray_prop = {'pos': [10, 0, 0],
                          'dir': [-1, 0, 0],
@@ -54,15 +55,14 @@ class PrismScanner():
                                    material=material.schott["N-BK7"])
 
         # Prism
-        # https://www.gophotonics.com/products/
-        # optical-lenses/edmund-optics-inc/33-15-68-048
         prism = Polygon(sides=4,
                         height=2,
                         inner_radius=15,
                         material=material.schott["N-BK7"])
 
         # Cylinder LENS 2 Edmund optics 68-046
-        # BFL + CT = 23.02 + 3
+        # https://www.gophotonics.com/products/
+        # optical-lenses/edmund-optics-inc/33-15-68-046
         CL_lens2 = CylindricalLens(size=(12.5, 25),
                                    thickness=3,
                                    curvature_s1=1./12.92,
@@ -80,6 +80,10 @@ class PrismScanner():
         PD = RectMirror(size=(5.4, 4, 0.01),
                         reflectivity=0)
 
+        # CCD camera
+        # CCD allows to image spot in focal plane
+        # and increases the length of rays traced
+        ccd = CCD()
         # Optical system
         # This rotation as this simplifies interaction with FreeCAD
         # Here the laser points in the -x direction
@@ -87,6 +91,7 @@ class PrismScanner():
         complist = [(CL_lens1, (0, 0, 0), (0.5*pi, 0, -0.5*pi)),
                     (prism, (-10-15, 0, 0), (0, 0, 0)),
                     (CL_lens2, (-50, 0, 0), (0.5*pi, 0.5*pi, -0.5*pi)),
+                    (ccd, (-75, 0, 0), (0.5*pi, 0.5*pi, -0.5*pi)),
                     (M1, (-60, -10, 0), (0.5*pi, 0.5*pi, 0.25*pi+pi)),
                     (PD, (-60, -20, 0), (0.5*pi, 0.5*pi, 0))]
         S = System(complist=complist, n=1)
@@ -100,20 +105,30 @@ class PrismScanner():
            rotation -- [rx, ry, rz] rotation of component
         '''
         target = self.S.complist[self.naming[comp]]
+
         if position is not None:
             target[-2][:] = position
         if rotation is not None:
             target[-1][:] = rotation
+
+        # if cylinder 2 is moved, move CCD to new approx focal point
+        if comp == 'CL2' and position:
+            position[0] = self.focal_point(cyllens1=False)
+            self.S.complist[self.naming['ccd']][-2][:] = position
+        if comp == 'CL2' and rotation:
+            raise Exception("Not supported")
+
         if reset:
             self.S.reset()
         self.S.ray_add(Ray(**self.ray_prop))
         self.S.propagate()
 
-    def focal_point(self, cyllens1):
+    def focal_point(self, cyllens1, simple=True):
         '''returns focal point of cylinder lens
 
            cyllens1  -- True, focal point cyl lens 1
                         False, focal point cyl lens 2
+           simple    -- Only get x-coordinate
         '''
         dct1 = deepcopy(self.ray_prop)
         dct2 = deepcopy(self.ray_prop)
@@ -130,8 +145,12 @@ class PrismScanner():
         self.S.ray_add(straal1)
         self.S.ray_add(straal2)
         self.S.propagate()
-        dist = nearest_points(straal1.get_final_rays()[0],
-                              straal2.get_final_rays()[0])[0][0]
+        if simple:
+            dist = nearest_points(straal1.get_final_rays()[0],
+                                  straal2.get_final_rays()[0])[0][0]
+        else:
+            dist = nearest_points(straal1.get_final_rays()[0],
+                                  straal2.get_final_rays()[0])[0]
         return dist
 
     def save_system(self, fname):
