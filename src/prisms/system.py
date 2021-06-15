@@ -118,12 +118,13 @@ class PrismScanner():
         dct1 = deepcopy(self.ray_prop)
         dct2 = deepcopy(self.ray_prop)
         if cyllens1:
-            dct1['pos'][1] = 5
-            dct1['pos'][1] = -5
+            dct1['pos'][1] += 1
+            dct2['pos'][1] -= 1
         else:
-            dct1['pos'][2] = 5
-            dct1['pos'][2] = -5
+            dct1['pos'][2] += 1
+            dct2['pos'][2] -= 1
         self.S.reset()
+        self.set_orientation('prism', rotation=(0, 0, 0))
         straal1 = Ray(**dct1)
         straal2 = Ray(**dct2)
         self.S.ray_add(straal1)
