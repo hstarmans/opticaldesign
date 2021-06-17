@@ -16,3 +16,7 @@ If you run both programs, analytical.py and simulation.py, you should see;
 | 10 | 0.006 | 0.005 |
 | 24 | 0.034 | 0.032 |
 | 30 | 0.054 | 0.05 |
+
+## Remarks
+The Zemax lens is modified to simplify loading of optical indices.  
+Installation info for Rayopt is available [here](https://github.com/jordens/rayopt).  
