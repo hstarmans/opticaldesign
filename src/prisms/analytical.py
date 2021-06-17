@@ -58,6 +58,12 @@ class Prism_properties:
         waist /= 1E3
         return waist
 
+    def duty_cycle(self):
+        '''duty cycle is fraction of one period of which
+           the system is active
+        '''
+        return self.max_recommended_angle()/self.max_angle_incidence()
+
     def rayleigh_length(self, f_numb=None):
         '''returns the rayleigh length in mm
 
@@ -222,6 +228,7 @@ class Prism_properties:
         utiltmax = self.max_angle_incidence()
         utilt = self.max_recommended_angle(verbose=True)
         dispmax = self.transversal_shift(utiltmax)
+        print(f"The duty cycle is {utilt/utiltmax:.2f}")
         print(f"The maximum line length is {2*dispmax:.2f} mm.")
         dispused = self.transversal_shift(utilt)
         self.speed_edges(utilt, verbose=True)
