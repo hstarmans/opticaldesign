@@ -5,7 +5,7 @@ There are two representions;
  - Analytical:  properties of prisms based upon pure math and physics
  - pyOpTools: description of the optical system in [pyOpTools](https://github.com/cihologramas/pyoptools)
 
-In the old folder, there is also a representation;
+In the old folder, there is a numerical verification for the Strehl ratio formula;
  - rayOpt: description of the optical system in [rayOpt](https://github.com/jordens/rayopt)
 
 ```console
@@ -29,15 +29,6 @@ Several issues
  - If light hits the prism at an edge corner, it does not know what to do and does not throw an error.
  - cylindrical lenses, do not have side surfaces in pyoptools
  - it is not possible to load cylindrical lenses directly from Edmund's library
-
-### Optical design
-Numerical and analytical model used for building a Hexastorm.
-The analytical model is contained in analytical.py
-The numerical model is contained in simulation.py.
-The article where the model and the technology for the Hexastorm is outlined is available [here](http://reprap.org/wiki/Transparent_polygon_scanner). 
-A presentation on the technology is available [here](https://www.youtube.com/watch?v=bLrt0U69ZLI).
-The Zemax lens is contained in zmax_49332ink.zmx. Installation info for Rayopt is available [here](https://github.com/jordens/rayopt).
-Note that the glass and stock catalogs need to be grabbed from the Windows installation to parse the lens data. The program also works under Linux.
 
 ## Links
 [Official site](https://www.hexastorm.com/)  
