@@ -108,6 +108,7 @@ class Prism_properties:
                 val = func(angle)
                 if val < threshold:
                     return utilt_max/iterations*(i-1)
+            return utilt_max
         utilt_strehl = minimize(self.strehl_ratio, strehl_ratio)
         utilt_fraction = minimize(self.speed_edges, min_fraction)
 
