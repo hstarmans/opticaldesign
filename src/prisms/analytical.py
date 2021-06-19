@@ -114,11 +114,11 @@ class Prism_properties:
 
         if verbose:
             if utilt_fraction < utilt_strehl:
-                print('Exposure is power limited')
+                print('Exposure line length fixed by speed constraint.')
             else:
-                print('Exposure is Strehl limited')
-            print(f'Strehl limit is {utilt_strehl:.2f} radians')
-            print(f'Power limit is {utilt_fraction:.2f} radians')
+                print('Exposure line length fixed by Strehl constraint.')
+            print(f'Strehl limit gives maximum angle of {utilt_strehl:.2f} radians')
+            print(f'Speed limit gives maximum angle of {utilt_fraction:.2f} radians')
         return min(utilt_fraction, utilt_strehl)
 
     def longitudinal_shift(self):
@@ -153,7 +153,7 @@ class Prism_properties:
         disp = expr.evalf(subs={x: angle})
         return disp
 
-    def cross_scan_error(self, focal_distance=35):
+    def cross_scan_error(self, focal_distance=35, verbose=False):
         '''error orthogonal to scanline
 
            the sides of the prism are not perfectly parallel
@@ -169,27 +169,29 @@ class Prism_properties:
 
            focal distance  -- distance between focal point
                               and edge prism
+           verbose         -- prints out cross scan error for different cases
         '''
         # https://en.wikipedia.org/wiki/Prism
         # assumes incidence angle and apex angle are both small
         #  the apex angle is small as adjacent sides are almost parallel
         #  the angle of incidicence small in the orthogonal case
-        #  but not the parallel case
+        #  but not the parallel case, this is corrected by photodiode
         #  furthermore both sides will have this
+        
+        # Case 1: one side is perfect, other side has max deviation
         params = self.params
-        d_angle = (params['n']-1)*np.radians(params['apex_angle'])
-        cross_error = np.tan(d_angle)*focal_distance
-        # a difference with reflective polygon scanning is that you
-        # hit 2 sides and not one, in the above
-        # it is assumed one side is perfect
-        # you might fix this by counting
-        # this as a tilted parallel plate +
-        # cross scan error
-        # the current fix is multiplication by 2
-        print("WARNING CROSS: It is between 0.5 and 1 of this error" +
-              " see comments in code.")
-        cross_error *= 2
-        return cross_error
+        apex_rad = np.radians(params['apex_angle'])
+        d_angle = (params['n']-1)*apex_rad
+        cross_error_1 = np.tan(d_angle)*focal_distance
+        # Other cases: (both sides have max deviation)
+        # Case 2: prism is in effect tilted 
+        cross_error_2 = self.transversal_shift(apex_rad)
+        if verbose:
+            print(f"Cross error, single side {cross_error_1:.4f}")
+            print(f"Cross error, tilted {cross_error_2:.4f}")
+        # Case 3: prism is tilted but case 1 acts against case 2
+        #         This is always smaller so can be ignored
+        return max(cross_error_1, cross_error_2)
 
     def speed_edges(self, utilt, verbose=False):
         '''speed along is not uniform
@@ -277,7 +279,7 @@ class Prism_properties:
         #   Note: cosine has been omitted, will be added back when function
         #         f is defined
         astig = -T*pow(utilt, 2)/pow(fnumber, 2)*((pow(n, 2)-1)/(8*pow(n, 3)))
-        # To calculate the combined RMS we add back the functional
+        # To calculate the combined RMS I add back the functional
         # forms to the coefficients
         # They have been obtained from Wyant, page 17, table 2
         # The function f defines the wavefront aberration denoted by Wyant as w
@@ -285,15 +287,15 @@ class Prism_properties:
         def f(theta, rho):
             return (sabr*(rho**4)+astig*(rho**2) *
                     (np.cos(theta)**2)+coma*(rho**3)*np.cos(theta))
-        # We now try to evaluate equation 62, page 37, Wyant
-        # First we define two auxiliary functions
+        # I now try to evaluate equation 62, page 37, Wyant
+        # First I define two auxiliary functions
 
         def ws(theta, rho):
             return f(theta, rho)**2*rho
 
         def w(theta, rho):
             return f(theta, rho)*rho
-        # Hereafter we evaluate the integral, i.e. equation 62
+        # Hereafter I evaluate the integral, i.e. equation 62
         var = (1/np.pi*dblquad(ws, 0, 1, lambda rho: 0, lambda rho: 2*np.pi)[0]
                - 1/(np.pi**2) *
                (dblquad(w, 0, 1, lambda rho: 0, lambda rho: 2*np.pi)[0]**2))
