@@ -39,12 +39,20 @@ class PrismScanner():
                          # rotation is broken, doesn't work well
                          'rot': [(0, 0, 0)]}
 
-    def system(self):
+    def system(self, microscope=False):
         '''defines optical system using pyoptools
 
         System is ordered upon distance from optical source.
         Closest component comes first.
+        
+        microscope  -- make laser microscope
         '''
+        # Mirror
+        # 50-50 beamsplitter used by breaking taps
+        BSM = RectMirror(size=(10, 10, 2),
+                         reflectivity=0.5)
+        
+        
         # Cylinder LENS 1 Edmund optics 68-048
         # https://www.gophotonics.com/products/
         # optical-lenses/edmund-optics-inc/33-15-68-048
@@ -88,12 +96,15 @@ class PrismScanner():
         # This rotation as this simplifies interaction with FreeCAD
         # Here the laser points in the -x direction
         # I am not able to rotate ThreeJS view in Z, so it is not optimal
-        complist = [(CL_lens1, (0, 0, 0), (0.5*pi, 0, -0.5*pi)),
-                    (prism, (-10-15, 0, 0), (0, 0, 0)),
-                    (CL_lens2, (-50, 0, 0), (0.5*pi, 0.5*pi, -0.5*pi)),
-                    (ccd, (-75, 0, 0), (0.5*pi, 0.5*pi, -0.5*pi)),
-                    (M1, (-60, -10, 0), (0.5*pi, 0.5*pi, 0.25*pi+pi)),
-                    (PD, (-60, -20, 0), (0.5*pi, 0.5*pi, 0))]
+        complist = [(CL_lens1, (-1, 0, 0), (0.5*pi, 0, -0.5*pi)),
+                    (prism, (-20-15, 0, 0), (0, 0, 0)),
+                    (CL_lens2, (-61, 0, 0), (0.5*pi, 0.5*pi, -0.5*pi)),
+                    (ccd, (-85, 0, 0), (0.5*pi, 0.5*pi, -0.5*pi)),
+                    (M1, (-70, 10, 0), (0.5*pi, 0.5*pi, -0.25*pi)),
+                    (PD, (-70, 20, 0), (0.5*pi, 0.5*pi, 0))]
+        if microscope:
+            complist.append((BSM, (-60, 0, 0), (0, -0.25*pi, 0)))
+        
         S = System(complist=complist, n=1)
         return S
 
