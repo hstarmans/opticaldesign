@@ -11,8 +11,22 @@ In the old folder, there is a numerical verification for the Strehl ratio formul
 ```console
 python3 setup.py develop --user
 ```
+A jupyter notebook is available in the notebooks folder.
+This can be converted to notebook as follows
+```console
+jupytext --to notebook *.py
+```
 
 ## Remarks
+
+### Instruction video
+Optical design is described in the video  
+https://youtu.be/kekMkjqzRjE  
+In the video, this work is combined with
+Hexastorm Design  
+https://github.com/hstarmans/hexastorm_design  
+FreeCAD workbench  
+https://github.com/hstarmans/freecad_hexastorm  
 
 ### Limitations model
 G2 lens specs can be found online....  
