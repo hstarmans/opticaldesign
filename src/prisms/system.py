@@ -44,15 +44,15 @@ class PrismScanner():
 
         System is ordered upon distance from optical source.
         Closest component comes first.
-        
+
         microscope  -- make laser microscope
         '''
         # Mirror
         # 50-50 beamsplitter used by breaking taps
         BSM = RectMirror(size=(10, 10, 2),
                          reflectivity=0.5)
-        
-        
+
+
         # Cylinder LENS 1 Edmund optics 68-048
         # https://www.gophotonics.com/products/
         # optical-lenses/edmund-optics-inc/33-15-68-048
@@ -144,11 +144,11 @@ class PrismScanner():
         dct1 = deepcopy(self.ray_prop)
         dct2 = deepcopy(self.ray_prop)
         if cyllens1:
-            dct1['pos'][1] += 1
-            dct2['pos'][1] -= 1
+            dct1['pos'][1] += 0.5
+            dct2['pos'][1] -= 0.5
         else:
-            dct1['pos'][2] += 1
-            dct2['pos'][2] -= 1
+            dct1['pos'][2] += 0.5
+            dct2['pos'][2] -= 0.5
         self.S.reset()
         self.set_orientation('prism', rotation=(0, 0, 0))
         straal1 = Ray(**dct1)
