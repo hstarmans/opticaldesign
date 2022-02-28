@@ -14,10 +14,14 @@ class Polygon(Component):
     sides        -- number of sides
     height       -- height of polygon
     inner radius -- inner radius of polygon
+    reflection   -- ray is reflected when it exist the prism
+                    this is used to simulate
     '''
-    def __init__(self, sides=3, height=3, inner_radius=10, **traits):
+    def __init__(self, sides=3, height=3, inner_radius=10, reflection=False, **traits):
         if sides < 3:
             raise Exception("Polygon should have at least 3 sides.")
+        if sides % 2 == 1:
+            print("Polygon needs even number of sides for scanning.")
         side_length = 2*inner_radius*np.tan(np.pi/sides)
         Component.__init__(self, **traits)
         # create a side base shape
@@ -25,8 +29,14 @@ class Polygon(Component):
         for i in range(sides):
             angle = 2*np.pi/sides*i
             center = inner_radius*np.array([np.cos(angle), np.sin(angle)])
+            if (i == sides//2) and reflection:
+                side = Plane(shape=Rectangular(size=(side_length, height)),
+                             reflectivity=1)
+            else:
+                side = Plane(shape=Rectangular(size=(side_length, height)))
             self.surflist[f"S{i}"] = (side, (center[0], center[1], 0),
                                       (np.pi/2, 0, angle+np.pi/2))
+            
         # create a top/bottom base shape
         triangle = Plane(shape=Triangular(((0, 0),
                          (-inner_radius, -side_length/2),

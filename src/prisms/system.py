@@ -3,8 +3,8 @@ import pickle
 from copy import deepcopy
 
 import numpy as np
-from pyoptools.all import (CylindricalLens, Ray, RectMirror, CCD,
-                           material, System, Plot3D, nearest_points)
+from pyoptools.all import (CylindricalLens, Ray, RectMirror, CCD, IdealLens,
+                           material, System, Plot3D, nearest_points, Shape)
 
 from prisms.library import Polygon
 from prisms.analytical import Prism_properties
@@ -12,22 +12,32 @@ from prisms.analytical import Prism_properties
 
 class PrismScanner():
     '''defines a prism scanner'''
-    def __init__(self, wavelength=0.405):
+    def __init__(self, wavelength=0.405, compact=False):
         '''instantiate optical system
 
         wavelength -- wavelength of the laser in microns
+        compact -- True renders with simple lens and prism
+                   False renders with two cylinder lenses
+                   mirror and prism
         '''
+        self.compact = compact
+        self.position_diode = (-70, 20, 0)
         self.S = self.system()
         self.wavelength = wavelength
         self.p = Prism_properties()
         # converts name to position
         # CL is cylinder lens
-        self.naming = {'CL1': 'C0',
-                       'prism': 'C1',
-                       'CL2': 'C2',
-                       'ccd': 'C3',
-                       'mirror': 'C4',
-                       'diode': 'C5'}
+        if compact:
+            self.naming = {'lens': 'C0',
+                           'prism': 'C1',
+                           'diode': 'C2'}
+        else:
+            self.naming = {'CL1': 'C0',
+                           'prism': 'C1',
+                           'CL2': 'C2',
+                           'ccd': 'C3',
+                           'mirror': 'C4',
+                           'diode': 'C5'}
         # default properties chief ray
         self.ray_prop = {'pos': [10, 0, 0],
                          'dir': [-1, 0, 0],
@@ -39,7 +49,7 @@ class PrismScanner():
                          # rotation is broken, doesn't work well
                          'rot': [(0, 0, 0)]}
 
-    def system(self, microscope=False):
+    def system(self, microscope=False, reflection=False):
         '''defines optical system using pyoptools
 
         System is ordered upon distance from optical source.
@@ -61,11 +71,13 @@ class PrismScanner():
                                    curvature_s1=1./38.76,
                                    curvature_s2=0,
                                    material=material.schott["N-BK7"])
+        Ideal_lens= IdealLens(f=75)
 
         # Prism
         prism = Polygon(sides=4,
                         height=2,
                         inner_radius=15,
+                        reflection=reflection,
                         material=material.schott["N-BK7"])
 
         # Cylinder LENS 2 Edmund optics 68-046
@@ -96,12 +108,18 @@ class PrismScanner():
         # This rotation as this simplifies interaction with FreeCAD
         # Here the laser points in the -x direction
         # I am not able to rotate ThreeJS view in Z, so it is not optimal
-        complist = [(CL_lens1, (-1, 0, 0), (0.5*pi, 0, -0.5*pi)),
-                    (prism, (-20-15, 0, 0), (0, 0, 0)),
-                    (CL_lens2, (-61, 0, 0), (0.5*pi, 0.5*pi, -0.5*pi)),
-                    (ccd, (-85, 0, 0), (0.5*pi, 0.5*pi, -0.5*pi)),
-                    (M1, (-70, 10, 0), (0.5*pi, 0.5*pi, -0.25*pi)),
-                    (PD, (-70, 20, 0), (0.5*pi, 0.5*pi, 0))]
+        if self.compact:
+            complist = [(Ideal_lens, (-1, 0, 0), (0.5*pi, 0, -0.5*pi)),
+                        (prism, (-20-15, 0, 0), (0, 0, 0)),
+                        (PD, self.position_diode, (0.5*pi, 0.5*pi, 0))]
+                        #(ccd, (-20, 30, 0), (0.5*pi, 0.5*pi, 0))]
+        else:
+            complist = [(CL_lens1, (-1, 0, 0), (0.5*pi, 0, -0.5*pi)),
+                        (prism, (-20-15, 0, 0), (0, 0, 0)),
+                        (CL_lens2, (-61, 0, 0), (0.5*pi, 0.5*pi, -0.5*pi)),
+                        (ccd, (-85, 0, 0), (0.5*pi, 0.5*pi, -0.5*pi)),
+                        (M1, (-70, 10, 0), (0.5*pi, 0.5*pi, -0.25*pi)),
+                        (PD, self.position_diode, (0.5*pi, 0.5*pi, 0))]
         if microscope:
             complist.append((BSM, (-60, 0, 0), (0, -0.25*pi, 0)))
         
@@ -134,7 +152,7 @@ class PrismScanner():
         self.S.ray_add(Ray(**self.ray_prop))
         self.S.propagate()
 
-    def focal_point(self, cyllens1, simple=True):
+    def focal_point(self, cyllens1, angle=0, simple=True, plot=False):
         '''returns focal point of cylinder lens
 
            cyllens1  -- True, focal point cyl lens 1
@@ -150,18 +168,23 @@ class PrismScanner():
             dct1['pos'][2] += 0.5
             dct2['pos'][2] -= 0.5
         self.S.reset()
-        self.set_orientation('prism', rotation=(0, 0, 0))
+        self.set_orientation('prism', rotation=(0, 0, np.radians(angle)))
         straal1 = Ray(**dct1)
         straal2 = Ray(**dct2)
         self.S.ray_add(straal1)
         self.S.ray_add(straal2)
         self.S.propagate()
+        self.position_diode = nearest_points(straal1.get_final_rays()[0],
+                                  straal2.get_final_rays()[0])[0]
         if simple:
             dist = nearest_points(straal1.get_final_rays()[0],
                                   straal2.get_final_rays()[0])[0][0]
         else:
             dist = nearest_points(straal1.get_final_rays()[0],
                                   straal2.get_final_rays()[0])[0]
+        if plot:
+            return Plot3D(self.S,
+                          **self.view_set)
         return dist
 
     def save_system(self, fname):
@@ -183,14 +206,16 @@ class PrismScanner():
         with open(fname, 'rb') as file:
             [self.ray_prop, self.S] = pickle.load(file)
 
-    def plot(self, angle=0, save=False):
+    def plot(self, angle=0, save=False, reflection=False):
         '''plot the system with a ray
 
            angle -- rotation angle in degrees of prism
+           reflection -- plots reflected ray which is used to trigger diode
         '''
-        self.set_orientation('prism', rotation=(0, 0, np.radians(angle)))
+        self.S = self.system(reflection=reflection)
         self.S.ray_add(Ray(**self.ray_prop))
-        self.S.propagate()
+        self.S.propagate(100)
+        self.set_orientation('prism', rotation=(0, 0, np.radians(angle)))
         return Plot3D(self.S,
                       **self.view_set)
 
