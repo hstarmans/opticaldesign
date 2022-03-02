@@ -21,10 +21,23 @@ p = PrismScanner(compact=True)
 
 p.plot(33, reflection=True)
 
-# You can also calculate the ideal position of the photodiode.
-# The signal can also be into the direction of the laserdiode.
+# You can also calculate the ideal position of the photodiode and place the diode there.  
+# There are two ideal positions; one on the box side and the other at the same place as the laser diode.
 
-p.focal_point(cyllens1=True, angle=42, simple=False, plot=True)
+p.focal_point(cyllens1=True, angle=33, simple=False, diode=True, plot=True)
+
+# The diode must be positioned for this to work.
+# Draw the rays which hit the edges of the photo-diode.
+
+p.show_key_rays(scanline=False)
+
+# The edges of the scanline cannot be drawn in the same image.
+
+diode_pos = p.position_diode
+p = PrismScanner(compact=True)
+p.position_diode = diode_pos
+p.S = p.system()
+p.show_key_rays(diode=False)
 
 # Let's calculate the amount of reflected light. The angle of incidence equals the rotation angle.
 # The refracted angle can be calculated from Snell's law.
@@ -68,10 +81,9 @@ snell(np.radians(30), 1, 1.5)
 from sympy.physics.optics import fresnel_coefficients, critical_angle
 sum([abs(x)**2 for x in fresnel_coefficients(0.33, 1.5, 1)[:2]])/2
 
-# All light can be reflected at second surface, the critical angle cannot be reached. The reflected angle is smaller than the incident angle.
+# All light can be reflected if you can go from a dense medium to a less dense medium. The transition from quartz to air.  
+# The critical angle cannot be reached. The reflected angle is smaller than the incident angle.  
 # The critical angle is 41 degrees. The maximum refracted angle is 28 degrees.
 
 print(np.degrees(snell(np.radians(45), 1, 1.5)))
 print(critical_angle(1.5, 1)/(2*np.pi)*360)
-
-

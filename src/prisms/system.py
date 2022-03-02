@@ -152,9 +152,11 @@ class PrismScanner():
         self.S.ray_add(Ray(**self.ray_prop))
         self.S.propagate()
 
-    def focal_point(self, cyllens1, angle=0, simple=True, plot=False):
-        '''returns focal point of cylinder lens
-
+    def focal_point(self, cyllens1, angle=0, simple=True, diode=False, plot=False):
+        '''returns focal point of cylinder lens, positions photodiode
+           at correct position
+           
+           diode     -- position photodiode
            cyllens1  -- True, focal point cyl lens 1
                         False, focal point cyl lens 2
            simple    -- Only get x-coordinate
@@ -167,15 +169,23 @@ class PrismScanner():
         else:
             dct1['pos'][2] += 0.5
             dct2['pos'][2] -= 0.5
-        self.S.reset()
-        self.set_orientation('prism', rotation=(0, 0, np.radians(angle)))
-        straal1 = Ray(**dct1)
-        straal2 = Ray(**dct2)
-        self.S.ray_add(straal1)
-        self.S.ray_add(straal2)
-        self.S.propagate()
-        self.position_diode = nearest_points(straal1.get_final_rays()[0],
-                                  straal2.get_final_rays()[0])[0]
+
+        def dotwice():
+            self.S.reset()
+            self.set_orientation('prism', rotation=(0, 0, np.radians(angle)))
+            straal1 = Ray(**dct1)
+            straal2 = Ray(**dct2)
+            self.S.ray_add(straal1)
+            self.S.ray_add(straal2)
+            self.S.propagate()
+            return straal1, straal2
+        straal1, straal2 = dotwice()
+        if diode:
+            # updates position diode
+            self.position_diode = nearest_points(straal1.get_final_rays()[0],
+                                      straal2.get_final_rays()[0])[0]
+            self.S = self.system(reflection=True)
+            straal1, straal2 = dotwice()
         if simple:
             dist = nearest_points(straal1.get_final_rays()[0],
                                   straal2.get_final_rays()[0])[0][0]
@@ -219,28 +229,32 @@ class PrismScanner():
         return Plot3D(self.S,
                       **self.view_set)
 
-    def draw_key_rays(self):
+    def draw_key_rays(self, diode=True, scanline=True):
         '''draws six chief rays
 
            chief rays which hit side scanline
            chief rays which hit side photodiode
            chief rays which are unperturbered
         '''
-        diode_angles = self.find_object('diode')
-        if not diode_angles:
-            print("Can't hit diode with laser")
-        max_scan_angle = np.degrees(self.p.max_recommended_angle())
-        scan_angles = [-max_scan_angle, max_scan_angle, 0]
+        lst = []
+        if diode:
+            diode_angles = self.find_object('diode')
+            if not diode_angles:
+                print("Can't hit diode with laser")
+            lst += diode_angles
+        if scanline:
+            max_scan_angle = np.degrees(self.p.max_recommended_angle())
+            scan_angles = [-max_scan_angle, max_scan_angle, 0]
+            lst += scan_angles
         self.S.reset()
-        lst = diode_angles + scan_angles
         for angle in lst:
             self.set_orientation('prism',
                                  rotation=(0, 0, np.radians(angle)),
                                  reset=False)
 
-    def show_key_rays(self):
+    def show_key_rays(self, diode=True, scanline=True):
         '''draws five chief rays and returns plot'''
-        self.draw_key_rays()
+        self.draw_key_rays(diode, scanline)
         return Plot3D(self.S,
                       **self.view_set)
 
