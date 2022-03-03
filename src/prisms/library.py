@@ -29,7 +29,7 @@ class Polygon(Component):
         for i in range(sides):
             angle = 2*np.pi/sides*i
             center = inner_radius*np.array([np.cos(angle), np.sin(angle)])
-            if (i == sides//2) and reflection:
+            if (i == 1) and reflection: # laser does not hit at side 0 but side 3
                 side = Plane(shape=Rectangular(size=(side_length, height)),
                              reflectivity=1)
             else:
