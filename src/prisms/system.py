@@ -5,6 +5,7 @@ from copy import deepcopy
 import numpy as np
 from pyoptools.all import (CylindricalLens, Ray, RectMirror, CCD, IdealLens,
                            material, System, Plot3D, nearest_points, Shape)
+from pyoptools.raytrace.shape.rectangular import Rectangular
 
 from prisms.library import Polygon
 from prisms.analytical import Prism_properties
@@ -12,7 +13,7 @@ from prisms.analytical import Prism_properties
 
 class PrismScanner():
     '''defines a prism scanner'''
-    def __init__(self, wavelength=0.405, compact=False, reflection=False):
+    def __init__(self, wavelength=0.405, focal_length=60, compact=False, reflection=False):
         '''instantiate optical system
 
         wavelength -- wavelength of the laser in microns
@@ -21,6 +22,7 @@ class PrismScanner():
                    mirror and prism
         '''
         self.compact = compact
+        self.focal_length = focal_length
         self.position_diode = (20, 70, 0)
         self.wavelength = wavelength
         self.reflection = reflection
@@ -72,7 +74,8 @@ class PrismScanner():
                                    curvature_s1=1./38.76,
                                    curvature_s2=0,
                                    material=material.schott["N-BK7"])
-        Ideal_lens= IdealLens(f=75)
+        Ideal_lens= IdealLens(shape=Rectangular(size=(5,5)), 
+                              f=self.focal_length)
 
         # Prism
         prism = Polygon(sides=4,
@@ -112,7 +115,7 @@ class PrismScanner():
         if self.compact:
             complist = [(Ideal_lens, (0, -26, 0), (0.5*pi, 0, 0)),
                         (prism, (0, 0, 0), (0, 0, 0)),
-                        (PD, self.position_diode, (0.5*pi, 0.5*pi, 0.5*pi))]
+                        (PD, self.position_diode, (0.5*pi, 0.5*pi, 0))]
                         #(ccd, (-20, 30, 0), (0.5*pi, 0.5*pi, 0))]
         else:
             complist = [(CL_lens1, (-1, 0, 0), (0.5*pi, 0, -0.5*pi)),
@@ -259,7 +262,7 @@ class PrismScanner():
         return Plot3D(self.S,
                       **self.view_set)
 
-    def find_object(self, name):
+    def find_object(self, name, low_angle=35):
         '''determines min and max scanangle upon which target
            is hit
 
@@ -271,7 +274,11 @@ class PrismScanner():
         target = self.S.complist[self.naming[name]][0]
         max_angle = int(round(np.degrees(self.p.max_angle_incidence())))
         # course search
-        for angle in range(-max_angle, max_angle, 1):
+        if not low_angle:
+            low_angle = -max_angle
+        else:
+            print(f"Low search angle fixed at {low_angle} degrees")
+        for angle in range(low_angle, max_angle, 1):
             self.set_orientation('prism', rotation=(0, 0, np.radians(angle)))
             if len(target.hit_list):
                 # in case of mirror we only want specific side
