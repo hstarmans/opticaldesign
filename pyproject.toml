@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "prisms"
+version = "0.1.0"
+description = "Optical design of laser prism scanner known as Hexastorm"
+authors = ["Rik Starmans <hstarmans@hexastorm.com>"]
+license = "GPLv3"
+packages = [
+    { include = "prisms", from = "src" },
+]
+
+
+[tool.poetry.dependencies]
+python = ">=3.8,<3.11"
+jupyter = "^1.0.0"
+jupyterlab = "^3.3.2"
+pythreejs = "^2.3.0"
+Cython = "^0.29.28"
+scipy = "^1.8.0"
+matplotlib = "^3.5.1"
+PyYAML = "^6.0"
+imageio = "^2.16.1"
+sympy = "^1.10.1"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0", "cython"]
+build-backend = "poetry.core.masonry.api"

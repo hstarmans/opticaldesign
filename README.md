@@ -17,6 +17,15 @@ This can be converted to notebook as follows
 jupytext --to notebook *.py
 ```
 
+## Install
+
+Install depencies using poetry.
+Pyoptools must be installed via pip
+poetry run python -m pip install git+https://github.com/cihologramas/pyoptools
+The pip install avoids error (https://github.com/python-poetry/poetry/issues/3744). Another fix would be to
+change pyoptools.
+Firefox does not work. Renders can only be made via jupyter lab.
+
 ## Remarks
 
 ### Instruction video
