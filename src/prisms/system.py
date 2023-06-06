@@ -4,7 +4,7 @@ from copy import deepcopy
 
 import numpy as np
 from pyoptools.all import (CylindricalLens, Ray, RectMirror, CCD, IdealLens,
-                           material, System, Plot3D, nearest_points, Shape)
+                           material, System, Plot3D, nearest_points)
 from pyoptools.raytrace.shape.rectangular import Rectangular
 
 from prisms.library import Polygon
@@ -13,34 +13,37 @@ from prisms.analytical import Prism_properties
 
 class PrismScanner():
     '''defines a prism scanner'''
-    def __init__(self, wavelength=0.405, focal_length=60, compact=False, reflection=False):
-        '''instantiate optical system
 
-        wavelength -- wavelength of the laser in microns
-        compact -- True renders with simple lens and prism
-                   False renders with two cylinder lenses
-                   mirror and prism
+    def __init__(self, wavelength=0.405, withcylinder=True):
+        '''defines optical system
+
+           laser propagates in y-direction with wavelength [microns]
+           system can be constructed with or without cylinder lenses.
+           The prism is located at x,y,z = 0, 0, laser height
+
+        wavelength   -- wavelength laser [microns]
+        withcylinder -- wether the system uses cylinder lenses
         '''
-        self.compact = compact
-        self.focal_length = focal_length
-        self.position_diode = (20, 70, 0)
+        self.withcylinder = withcylinder
+        self.position_diode = (60, 38, 0)
         self.wavelength = wavelength
-        self.reflection = reflection
         self.S = self.system()
         self.p = Prism_properties()
         # converts name to position
         # CL is cylinder lens
-        if compact:
-            self.naming = {'lens': 'C0',
-                           'prism': 'C1',
-                           'diode': 'C2'}
-        else:
+        if self.withcylinder:
             self.naming = {'CL1': 'C0',
                            'prism': 'C1',
                            'CL2': 'C2',
                            'ccd': 'C3',
                            'mirror': 'C4',
                            'diode': 'C5'}
+        else:
+            self.naming = {'lens': 'C0',
+                           'prism': 'C1',
+                           'mirror': 'C2',
+                           'diode': 'C3'}
+
         # default properties chief ray
         self.ray_prop = {'pos': [0, -40, 0],
                          'dir': [0, 1, 0],
@@ -52,19 +55,19 @@ class PrismScanner():
                          # rotation is broken, doesn't work well
                          'rot': [(0, 0, 0)]}
 
-    def system(self, microscope=False):
+    def system(self):
         '''defines optical system using pyoptools
 
         System is ordered upon distance from optical source.
         Closest component comes first.
-
-        microscope  -- make laser microscope
         '''
         # Mirror
-        # 50-50 beamsplitter used by breaking taps
-        BSM = RectMirror(size=(10, 10, 2),
-                         reflectivity=0.5)
-
+        # A beamsplitter could possibly be used in laser microscope
+        # see the video of laser microscopes on breaking taps
+        # There is research in doing this on
+        # chip via a photonic circuit which simplifies the design
+        # BSM = RectMirror(size=(10, 10, 2),
+        #                 reflectivity=0.5)
 
         # Cylinder LENS 1 Edmund optics 68-048
         # https://www.gophotonics.com/products/
@@ -74,14 +77,19 @@ class PrismScanner():
                                    curvature_s1=1./38.76,
                                    curvature_s2=0,
                                    material=material.schott["N-BK7"])
-        Ideal_lens= IdealLens(shape=Rectangular(size=(5,5)), 
-                              f=self.focal_length)
+        Ideal_lens = IdealLens(shape=Rectangular(size=(5,5)),
+                               f=60)
 
         # Prism
         prism = Polygon(sides=4,
                         height=2,
                         inner_radius=15,
-                        reflection=self.reflection,
+                        # reflection
+                        #   used to try out system
+                        #   where light is reflected at the second prism
+                        #   interface for the position of the photodiode
+                        #   https://hackaday.io/project/21933-prism-laser-scanner/
+                        #   log/204569-optical-weakenss-in-new-design
                         material=material.schott["N-BK7"])
 
         # Cylinder LENS 2 Edmund optics 68-046
@@ -106,27 +114,29 @@ class PrismScanner():
 
         # CCD camera
         # CCD allows to image spot in focal plane
-        # and increases the length of rays traced
+        # and increases the distance over which rays are traced
+        # as these are drawn until CCD camera
         ccd = CCD()
         # Optical system
         # This rotation as this simplifies interaction with FreeCAD
         # Here the laser points in the -x direction
         # I am not able to rotate ThreeJS view in Z, so it is not optimal
-        if self.compact:
+        if self.withcylinder:
+            self.position_diode = (35, 31, 0)
+            complist = [(CL_lens1, (0, -29, 0), (-0.5*pi, 0, 0)),
+                        (prism, (0, 0, 0), (0, 0, 0)),
+                        (CL_lens2, (-6, 31, 0), (0, -0.5*pi, -0.5*pi)),
+                        (ccd, (0, 50, 0), (0.5*pi, 0.5*pi, 0)),
+                        (M1, (11, 31, 0), (0.5*pi, 0.5*pi, 0.25*pi+pi)),
+                        (PD, self.position_diode, (0.5*pi, 0.5*pi, 0.5*pi))]
+        else:
+            self.position_diode = (60, 38, 0)
             complist = [(Ideal_lens, (0, -26, 0), (0.5*pi, 0, 0)),
                         (prism, (0, 0, 0), (0, 0, 0)),
-                        (PD, self.position_diode, (0.5*pi, 0.5*pi, 0))]
+                        (M1, (11, 38, 0), (0.5*pi, 0.5*pi, 0.25*pi+pi)),
+                        (PD, self.position_diode, (0.5*pi, 0.5*pi, 0.5*pi))]
                         #(ccd, (-20, 30, 0), (0.5*pi, 0.5*pi, 0))]
-        else:
-            complist = [(CL_lens1, (-1, 0, 0), (0.5*pi, 0, -0.5*pi)),
-                        (prism, (-20-15, 0, 0), (0, 0, 0)),
-                        (CL_lens2, (-61, 0, 0), (0.5*pi, 0.5*pi, -0.5*pi)),
-                        (ccd, (-85, 0, 0), (0.5*pi, 0.5*pi, -0.5*pi)),
-                        (M1, (-70, 10, 0), (0.5*pi, 0.5*pi, -0.25*pi)),
-                        (PD, self.position_diode, (0.5*pi, 0.5*pi, 0))]
-        if microscope:
-            complist.append((BSM, (-60, 0, 0), (0, -0.25*pi, 0)))
-        
+
         S = System(complist=complist, n=1)
         return S
 
@@ -156,24 +166,39 @@ class PrismScanner():
         self.S.ray_add(Ray(**self.ray_prop))
         self.S.propagate()
 
+    def distance_between_cylinders(self):
+        '''returns distance between the focal points of both
+           cylinder lenses
+        '''
+
     def focal_point(self, cyllens1, angle=0, simple=True, diode=False, plot=False):
         '''returns focal point of cylinder lens, positions photodiode
            at correct position
-           
+
            diode     -- position photodiode
            cyllens1  -- True, focal point cyl lens 1
                         False, focal point cyl lens 2
            simple    -- Only get x-coordinate
         '''
+        # the idea is that two rays are created
+        # light propagates in positive y-direction
         dct1 = deepcopy(self.ray_prop)
         dct2 = deepcopy(self.ray_prop)
+        # the first cylinder focusses parallel to the
+        # prism, i.e. the x-direction.
+        # The rays are given an offset in this direction.
+        # Now they should intersect at only one point,
+        # known as the nearest point
         if cyllens1:
             dct1['pos'][0] += 0.5
             dct2['pos'][0] -= 0.5
+        # the second cylinder focusses orthogonal to the
+        # the cylinder, i.e. the z-direction
         else:
             dct1['pos'][2] += 0.5
             dct2['pos'][2] -= 0.5
 
+        # we propagate the two rays
         def dotwice():
             self.S.reset()
             self.set_orientation('prism', rotation=(0, 0, np.radians(angle)))
@@ -251,6 +276,8 @@ class PrismScanner():
             scan_angles = [-max_scan_angle, max_scan_angle, 0]
             lst += scan_angles
         self.S.reset()
+        print('drawing')
+        print(lst)
         for angle in lst:
             self.set_orientation('prism',
                                  rotation=(0, 0, np.radians(angle)),
@@ -262,7 +289,7 @@ class PrismScanner():
         return Plot3D(self.S,
                       **self.view_set)
 
-    def find_object(self, name, low_angle=35):
+    def find_object(self, name):
         '''determines min and max scanangle upon which target
            is hit
 
@@ -270,6 +297,11 @@ class PrismScanner():
 
            return minimum and maximum hit angle
         '''
+        if self.withcylinder:
+            low_angle = None
+        else:
+            low_angle = 0
+
         hit_angle = []
         target = self.S.complist[self.naming[name]][0]
         max_angle = int(round(np.degrees(self.p.max_angle_incidence())))

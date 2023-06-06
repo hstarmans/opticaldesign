@@ -15,16 +15,18 @@
 from pyoptools.all import Plot3D
 from math import pi
 from prisms.system import PrismScanner
-p = PrismScanner(compact=True)
+p = PrismScanner(compact=True, reflection=False)
 
 # The code has been updated so it is possible to plot a reflection on the second prism surface.
+# There are two domains; above 40 degrees (bundle will reflect back) or below 40 degrees (sideways).
 
-p.plot(33, reflection=True)
+#p.set_orientation('prism', position=[0, 0, 0.2])
+p.plot(-35)
 
 # You can also calculate the ideal position of the photodiode and place the diode there.  
 # There are two ideal positions; one on the box side and the other at the same place as the laser diode.
 
-p.focal_point(cyllens1=True, angle=33, simple=False, diode=True, plot=True)
+p.focal_point(cyllens1=True, angle=43, simple=False, diode=True, plot=True)
 
 # The diode must be positioned for this to work.
 # Draw the rays which hit the edges of the photo-diode.
@@ -74,12 +76,12 @@ def snell(theta_inc, n1, n2):
 
 # For a rotation angle of 30 degrees, I get a refracted angle.
 
-snell(np.radians(30), 1, 1.5)
+snell(np.radians(42), 1, 1.5)
 
 # Reflected light on the second surface, is according to Fresnell. At a 30 degrees rotation angle.
 
 from sympy.physics.optics import fresnel_coefficients, critical_angle
-sum([abs(x)**2 for x in fresnel_coefficients(0.33, 1.5, 1)[:2]])/2
+sum([abs(x)**2 for x in fresnel_coefficients(0.46, 1.5, 1)[:2]])/2
 
 # All light can be reflected if you can go from a dense medium to a less dense medium. The transition from quartz to air.  
 # The critical angle cannot be reached. The reflected angle is smaller than the incident angle.  
@@ -87,3 +89,44 @@ sum([abs(x)**2 for x in fresnel_coefficients(0.33, 1.5, 1)[:2]])/2
 
 print(np.degrees(snell(np.radians(45), 1, 1.5)))
 print(critical_angle(1.5, 1)/(2*np.pi)*360)
+
+# In the new system, the rotation axis might not be fixed at the center.  
+# Let's say the rotational axis is displaced from the center.  
+# The systems is sensitive to delta translation in x and y, this leads to ghosting.
+
+initial_position = np.array([0,0,0])
+delta = -0.02
+p.set_orientation('prism', position=initial_position.tolist())
+p.plot(35)
+start = p.focal_point(cyllens1=True, angle=43, simple=False, diode=True, plot=False)
+# x translation shifts in y and x
+p.set_orientation('prism', position=initial_position+np.array([delta, 0, 0]))
+delta_x = p.focal_point(cyllens1=True, angle=43, simple=False, diode=True, plot=False)
+# ray propagates in the y-direction, shift in the y direction, shifts in y
+p.set_orientation('prism', position=initial_position+np.array([0, delta, 0]))
+delta_y = p.focal_point(cyllens1=True, angle=43, simple=False, diode=True, plot=False)
+# z translation should not matter
+p.set_orientation('prism', position=initial_position+np.array([0, 0, delta]))
+delta_z = p.focal_point(cyllens1=True, angle=43, simple=False, diode=True, plot=False)
+# NOTE: it's too high in x and y, 4.0E-1 equals 400 micron
+print(start-delta_x)
+print(start-delta_y)
+print(start-delta_z)
+
+p.load_system('temp.pkl')
+
+from pyoptools.all import (CylindricalLens, Ray, RectMirror, CCD, IdealLens,
+                           material, System, Plot3D, nearest_points, Shape)
+
+from pyoptools.raytrace.shape.rectangular import Rectangular
+
+Rectangular(size=(5,5))
+
+# !jupytext --to py system_compact.ipynb
+
+# !jupytext --to notebook Plot\ System.py
+
+p.set_orientation('prism', position=initial_position+np.array([0, 0, 0]))
+p.focal_point(cyllens1=True, angle=43, simple=False, diode=True, plot=True)
+
+
