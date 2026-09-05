@@ -180,6 +180,7 @@ def plot_system_plotly(
     dark_mode: bool = False,
     width: int = 900,
     height: int = 550,
+    camera_eye: dict = None,
 ) -> go.Figure:
     """Creates an interactive 3D WebGL visualization of an optical system using Plotly.
 
@@ -362,7 +363,7 @@ def plot_system_plotly(
                 "gridcolor": "#E5E7EB" if not dark_mode else "#333333",
             },
             "camera": {
-                "eye": {"x": -1.6, "y": -1.6, "z": 1.3},
+                "eye": camera_eye or {"x": -1.6, "y": -1.6, "z": 1.3},
                 "up": {"x": 0, "y": 0, "z": 1},
             },
         },

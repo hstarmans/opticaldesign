@@ -57,16 +57,33 @@ def __(mo):
         stop=45,
         step=1,
         value=-38,
-        label="Prism Rotation Angle (degrees)",
+        label="Prism Rotation Angle",
+        show_value=True,
     )
-    cylinder_toggle = mo.ui.checkbox(value=True, label="Include Cylindrical Lenses")
-    key_rays_toggle = mo.ui.checkbox(value=False, label="Show Key Boundary Rays")
-    mo.hstack([angle_slider, cylinder_toggle, key_rays_toggle], justify="start")
-    return angle_slider, cylinder_toggle, key_rays_toggle
+    cylinder_toggle = mo.ui.checkbox(value=True, label="Include Cylinders")
+    key_rays_toggle = mo.ui.checkbox(value=False, label="Key Boundary Rays")
+    camera_view = mo.ui.dropdown(
+        options={
+            "Perspective 3D": {"x": -1.6, "y": -1.6, "z": 1.3},
+            "Top View (XY)": {"x": 0.0, "y": 0.0, "z": 2.5},
+            "Side View (YZ)": {"x": 2.5, "y": 0.0, "z": 0.0},
+            "Front View (XZ)": {"x": 0.0, "y": -2.5, "z": 0.0},
+        },
+        value="Perspective 3D",
+        label="Camera Angle",
+    )
+    return angle_slider, camera_view, cylinder_toggle, key_rays_toggle
 
 
 @app.cell
-def __(PrismScanner, angle_slider, cylinder_toggle, key_rays_toggle, mo):
+def __(
+    PrismScanner,
+    angle_slider,
+    camera_view,
+    cylinder_toggle,
+    key_rays_toggle,
+    mo,
+):
     scanner = PrismScanner(withcylinder=cylinder_toggle.value)
     hit_range = scanner.find_object("diode")
     focal_dist = scanner.distance_between_cylinders() if cylinder_toggle.value else 0.0
@@ -76,21 +93,37 @@ def __(PrismScanner, angle_slider, cylinder_toggle, key_rays_toggle, mo):
     )
     hit_badge = "🟢 Diode illuminated" if is_hit else "⚪ Diode not hit"
 
+    controls = mo.hstack(
+        [angle_slider, cylinder_toggle, key_rays_toggle, camera_view],
+        justify="start",
+        align="center",
+        gap=2,
+    )
+
     status_md = mo.md(
         f"""
-        ### Simulation Status ({hit_badge})
-        * **Prism Angle:** `{angle_slider.value}°`
-        * **Photodiode Hit Window:** `{hit_range}` degrees
-        * **Cylinder Focal Distance Spacing:** `{focal_dist:.3f} mm`
+        * **Prism Angle:** `{angle_slider.value}°` &nbsp;|&nbsp;
+        * **Photodiode Status:** {hit_badge} &nbsp;|&nbsp;
+        * **Photodiode Hit Window:** `{hit_range}` &nbsp;|&nbsp;
+        * **Cylinder Focal Distance:** `{focal_dist:.3f} mm`
         """
     )
 
     if key_rays_toggle.value:
-        fig = scanner.show_key_rays(backend="plotly")
+        fig = scanner.show_key_rays(backend="plotly", camera_eye=camera_view.value)
     else:
-        fig = scanner.plot(angle=angle_slider.value, backend="plotly")
+        fig = scanner.plot(
+            angle=angle_slider.value,
+            backend="plotly",
+            camera_eye=camera_view.value,
+        )
 
-    mo.vstack([status_md, mo.ui.plotly(fig)])
+    mo.vstack([
+        mo.md("### Interactive 3D System View"),
+        controls,
+        status_md,
+        mo.ui.plotly(fig),
+    ])
     return fig, focal_dist, hit_badge, hit_range, is_hit, scanner, status_md
 
 
