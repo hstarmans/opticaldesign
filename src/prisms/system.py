@@ -275,13 +275,27 @@ class PrismScanner:
         with open(fname, "rb") as file:
             self.ray_prop, self.S = pickle.load(file)
 
-    def plot(self, angle=0):
-        """Plot the system with a traced ray at given prism rotation angle."""
+    def plot(self, angle=0, backend="plotly", **kwargs):
+        """Plot the system with a traced ray at given prism rotation angle.
+
+        Parameters:
+            angle: Prism rotation angle in degrees.
+            backend: 'plotly' (default, modern interactive WebGL) or 'pythreejs' (legacy Jupyter).
+        """
         self.S.reset()
         self.S.ray_add(self._make_ray())
         self.S.propagate(100)
         self.set_orientation("prism", rotation=(0, 0, np.radians(angle)))
+        if backend == "plotly":
+            from prisms.viewer import plot_system_plotly
+
+            title = kwargs.pop("title", f"Hexastorm Prism Scanner (Angle: {angle}°)")
+            return plot_system_plotly(self.S, title=title, **kwargs)
         return Plot3D(self.S, **self.view_set)
+
+    def plot_plotly(self, angle=0, **kwargs):
+        """Convenience method to explicitly generate a Plotly 3D visualization."""
+        return self.plot(angle=angle, backend="plotly", **kwargs)
 
     def draw_key_rays(self, diode=True, scanline=True):
         """Trace chief rays for scanline edges and photodiode hits."""
@@ -301,10 +315,21 @@ class PrismScanner:
         for ang in angles:
             self.set_orientation("prism", rotation=(0, 0, np.radians(ang)), reset=False)
 
-    def show_key_rays(self, diode=True, scanline=True):
-        """Draw key rays and return 3D plot widget."""
+    def show_key_rays(self, diode=True, scanline=True, backend="plotly", **kwargs):
+        """Draw key rays and return 3D plot widget (Plotly or pythreejs)."""
         self.draw_key_rays(diode, scanline)
+        if backend == "plotly":
+            from prisms.viewer import plot_system_plotly
+
+            title = kwargs.pop("title", "Hexastorm Prism Scanner - Key Rays")
+            return plot_system_plotly(self.S, title=title, **kwargs)
         return Plot3D(self.S, **self.view_set)
+
+    def show_key_rays_plotly(self, diode=True, scanline=True, **kwargs):
+        """Convenience method to explicitly generate a Plotly 3D visualization of key rays."""
+        return self.show_key_rays(
+            diode=diode, scanline=scanline, backend="plotly", **kwargs
+        )
 
     def find_object(self, name):
         """Determines minimum and maximum scan angle where target object is hit.

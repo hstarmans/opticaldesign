@@ -77,5 +77,12 @@ def __(PrismScanner, angle_slider, cylinder_toggle, mo):
     return focal_dist, hit_badge, hit_range, is_hit, scanner, status_text
 
 
+@app.cell
+def __(angle_slider, mo, scanner):
+    fig = scanner.plot(angle=angle_slider.value, backend="plotly")
+    mo.ui.plotly(fig)
+    return (fig,)
+
+
 if __name__ == "__main__":
     app.run()
