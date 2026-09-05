@@ -73,6 +73,107 @@ def _extract_ray_segments(ray) -> list[tuple[np.ndarray, np.ndarray]]:
     return segments
 
 
+def _wavelength_to_color(wl: float) -> str:
+    """Map optical wavelength to an RGB hex color.
+
+    405 nm laser diode light is in the blue-violet spectrum.
+    """
+    wl_nm = wl * 1000.0 if wl < 10.0 else wl
+    if 380 <= wl_nm <= 440:
+        return "#2563EB"  # 405 nm Royal Blue Laser Diode
+    elif 440 < wl_nm <= 495:
+        return "#0284C7"  # Cyan / sky blue
+    elif 495 < wl_nm <= 570:
+        return "#16A34A"  # Green
+    elif 570 < wl_nm <= 590:
+        return "#EAB308"  # Yellow
+    elif 590 < wl_nm <= 620:
+        return "#EA580C"  # Orange
+    elif 620 < wl_nm <= 750:
+        return "#DC2626"  # Red
+    return "#2563EB"
+
+
+def _generate_lens_side_mesh(component, T_comp) -> tuple[np.ndarray, np.ndarray] | tuple[None, None]:
+    """Generate watertight side walls connecting S1 and S2 of a CylindricalLens.
+
+    pyOpTools CylindricalLens only defines front and back curved/plane surfaces
+    without closing the perimeter sides. This function stitches the perimeter
+    points of S1 and S2 to create complete solid 3D optics.
+    """
+    surflist = getattr(component, "surflist", {})
+    if isinstance(surflist, (list, tuple)):
+        surflist = dict(enumerate(surflist))
+
+    s1_item = surflist.get("S1") or surflist.get(0)
+    s2_item = surflist.get("S2") or surflist.get(1)
+    if not s1_item or not s2_item:
+        return None, None
+
+    surf1, pos1, rot1 = (
+        s1_item
+        if isinstance(s1_item, (list, tuple)) and len(s1_item) == 3
+        else (s1_item, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
+    )
+    surf2, pos2, rot2 = (
+        s2_item
+        if isinstance(s2_item, (list, tuple)) and len(s2_item) == 3
+        else (s2_item, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
+    )
+
+    if not hasattr(surf1, "polylist") or not hasattr(surf2, "polylist"):
+        return None, None
+
+    pts1, _ = surf1.polylist()
+    pts2, _ = surf2.polylist()
+    if len(pts1) == 0 or len(pts2) == 0:
+        return None, None
+
+    T_surf1 = _transformation_matrix(pos1, rot1)
+    T_surf2 = _transformation_matrix(pos2, rot2)
+    T_tot1 = T_comp @ T_surf1
+    T_tot2 = T_comp @ T_surf2
+
+    pts1_4d = np.hstack([pts1, np.ones((len(pts1), 1), dtype=float)])
+    pts2_4d = np.hstack([pts2, np.ones((len(pts2), 1), dtype=float)])
+
+    world1 = (T_tot1 @ pts1_4d.T).T[:, :3]
+    world2 = (T_tot2 @ pts2_4d.T).T[:, :3]
+
+    nx, ny = getattr(getattr(surf1, "shape", None), "samples", (30, 30))
+    if len(world1) != nx * ny or len(world2) != nx * ny:
+        return None, None
+
+    grid1 = world1.reshape((ny, nx, 3))
+    grid2 = world2.reshape((ny, nx, 3))
+
+    # Perimeter indices in clockwise order
+    perimeter_coords = []
+    for c in range(nx - 1):
+        perimeter_coords.append((0, c))
+    for r in range(ny - 1):
+        perimeter_coords.append((r, nx - 1))
+    for c in range(nx - 1, 0, -1):
+        perimeter_coords.append((ny - 1, c))
+    for r in range(ny - 1, 0, -1):
+        perimeter_coords.append((r, 0))
+
+    N = len(perimeter_coords)
+    side_pts = np.empty((2 * N, 3), dtype=float)
+    for idx, (r, c) in enumerate(perimeter_coords):
+        side_pts[idx] = grid1[r, c]
+        side_pts[N + idx] = grid2[r, c]
+
+    side_polys = np.empty((2 * N, 3), dtype=int)
+    for k in range(N):
+        k_next = (k + 1) % N
+        p1, p2, p3, p4 = k, k_next, N + k_next, N + k
+        side_polys[2 * k] = [p1, p2, p3]
+        side_polys[2 * k + 1] = [p1, p3, p4]
+
+    return side_pts, side_polys
+
+
 def plot_system_plotly(
     system,
     title: str = "Hexastorm Optical System (3D View)",
@@ -100,31 +201,39 @@ def plot_system_plotly(
         T_comp = _transformation_matrix(comp_pos, comp_rot)
         comp_name = type(component).__name__
 
-        # Material styling
+        # Material styling: clean, distinct optical materials
         if "Polygon" in comp_name:
-            # Elegant optical crown glass (N-BK7) with transparency
-            color = "#00B4D8"
-            opacity = 0.65
+            # Schott N-BK7 refractive scanning prism
+            color = "#38BDF8"  # Clear optical cyan-glass
+            opacity = 0.40
             flatshading = True
         elif "Cylindrical" in comp_name or "Lens" in comp_name:
-            color = "#48CAE4"
-            opacity = 0.55
+            # Crystal optical glass (Schott N-BK7)
+            color = "#BAE6FD"  # High-transparency optical glass
+            opacity = 0.45
             flatshading = False  # Smooth shading for cylindrical curves
         elif "Mirror" in comp_name:
-            color = "#D3D3D3"
+            # Silver/aluminum coated mirror
+            color = "#E2E8F0"
             opacity = 0.90
             flatshading = True
         elif "CCD" in comp_name or "pd" in str(comp).lower():
-            color = "#E76F51"
-            opacity = 0.85
+            # Silicon detector sensor
+            color = "#475569"
+            opacity = 0.90
             flatshading = True
         else:
-            color = "#90E0EF"
-            opacity = 0.60
+            color = "#CBD5E1"
+            opacity = 0.50
             flatshading = True
 
         surflist = getattr(component, "surflist", [])
-        for surf_idx, surf_item in enumerate(surflist):
+        if isinstance(surflist, dict):
+            surf_items = list(surflist.items())
+        else:
+            surf_items = list(enumerate(surflist))
+
+        for surf_key, surf_item in surf_items:
             if isinstance(surf_item, (list, tuple)) and len(surf_item) == 3:
                 surf_obj, surf_pos, surf_rot = surf_item
             else:
@@ -150,9 +259,9 @@ def plot_system_plotly(
             pts_4d = np.hstack([pts, np.ones((len(pts), 1), dtype=float)])
             world_pts = (T_total @ pts_4d.T).T[:, :3]
 
-            # Reflection facet highlight on polygon
+            # Reflection facet highlight on polygon / mirror
             facet_color = (
-                "#F77F00" if getattr(surf_obj, "reflectivity", 0) == 1 else color
+                "#F59E0B" if getattr(surf_obj, "reflectivity", 0) == 1 else color
             )
 
             mesh = go.Mesh3d(
@@ -162,7 +271,7 @@ def plot_system_plotly(
                 i=polys[:, 0],
                 j=polys[:, 1],
                 k=polys[:, 2],
-                name=f"{comp_name} ({surf_idx})",
+                name=f"{comp_name} ({surf_key})",
                 color=facet_color,
                 opacity=opacity,
                 flatshading=flatshading,
@@ -179,22 +288,52 @@ def plot_system_plotly(
             )
             traces.append(mesh)
 
-    # 2. Render Propagated Rays with High-Visibility Neon Glow
+        # For CylindricalLens: stitch perimeter of S1 and S2 to create closed side walls
+        if "Cylindrical" in comp_name:
+            side_pts, side_polys = _generate_lens_side_mesh(component, T_comp)
+            if side_pts is not None and side_polys is not None:
+                side_mesh = go.Mesh3d(
+                    x=side_pts[:, 0],
+                    y=side_pts[:, 1],
+                    z=side_pts[:, 2],
+                    i=side_polys[:, 0],
+                    j=side_polys[:, 1],
+                    k=side_polys[:, 2],
+                    name=f"{comp_name} (Sides)",
+                    color="#94A3B8",  # Ground-glass frosted bevel
+                    opacity=0.55,
+                    flatshading=True,
+                    lighting={
+                        "ambient": 0.75,
+                        "diffuse": 0.85,
+                        "roughness": 0.3,
+                        "specular": 0.4,
+                    },
+                    hoverinfo="name",
+                    showlegend=False,
+                )
+                traces.append(side_mesh)
+
+    # 2. Render Propagated Rays with High-Visibility Laser Beam
     rx, ry, rz = [], [], []
+    wavelength = 0.405
     for ray in getattr(system, "prop_ray", []):
+        wavelength = getattr(ray, "wavelength", 0.405)
         for p1, p2 in _extract_ray_segments(ray):
             rx.extend([p1[0], p2[0], None])
             ry.extend([p1[1], p2[1], None])
             rz.extend([p1[2], p2[2], None])
 
     if rx:
+        wl_nm = int(wavelength * 1000.0 if wavelength < 10.0 else wavelength)
+        beam_color = _wavelength_to_color(wavelength)
         ray_trace = go.Scatter3d(
             x=rx,
             y=ry,
             z=rz,
             mode="lines",
-            line={"color": "#FF007F", "width": 5},  # High-visibility neon beam
-            name="Laser Beam (405 nm)",
+            line={"color": beam_color, "width": 5},  # Wavelength-accurate laser beam
+            name=f"Laser Beam ({wl_nm} nm)",
             hoverinfo="name",
             showlegend=True,
         )

@@ -1,11 +1,11 @@
 # Agent Guidelines for OpticalDesign
 
 ## Script Execution Pattern
-- Whenever running ad-hoc Python scripts, environment inspections, or multi-step execution commands, ALWAYS write them into `script.py` at the repository root and execute via:
+- Whenever running ad-hoc Python scripts, environment inspections, or multi-step execution commands, ALWAYS write them into `script.py` at the repository root and execute via `uv`:
   ```bash
-  python3 script.py
+  uv run python script.py
   ```
-- This ensures the user only needs to authorize permission once in the IDE.
+- This ensures the project's virtual environment dependencies (`pyoptools`, `scipy`, `plotly`, `marimo`, etc.) are automatically loaded, and the user only needs to authorize permission once in the IDE.
 - `script.py` is ignored in `.gitignore`.
 
 ## Math & Formula Formatting

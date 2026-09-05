@@ -21,6 +21,15 @@ def test_plot_system_plotly_structure():
     # Check 1:1:1 scale configuration
     assert fig.layout.scene.aspectmode == "data"
 
+    # Check that 405 nm beam is royal blue (#2563EB)
+    ray_traces = [t for t in fig.data if t.type == "scatter3d"]
+    assert len(ray_traces) > 0
+    assert ray_traces[0].line.color == "#2563EB"
+
+    # Check that cylinder lenses have closed side walls
+    side_traces = [t for t in fig.data if "Sides" in getattr(t, "name", "")]
+    assert len(side_traces) == 2
+
 
 def test_prism_scanner_plotly_methods():
     """Verify PrismScanner plot and show_key_rays methods with plotly backend."""
