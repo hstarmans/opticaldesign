@@ -1,30 +1,49 @@
-[tool.poetry]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
 name = "prisms"
-version = "0.1.0"
-description = "Optical design of laser prism scanner known as Hexastorm"
-authors = ["Rik Starmans <hstarmans@hexastorm.com>"]
-license = "GPLv3"
-packages = [
-    { include = "prisms", from = "src" },
+version = "0.2.0"
+description = "Optical design and simulation of laser prism scanner known as Hexastorm"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+authors = [
+    { name = "Rik Starmans", email = "hstarmans@hexastorm.com" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.26.0",
+    "scipy>=1.14.0",
+    "sympy>=1.13.0",
+    "matplotlib>=3.8.0",
+    "imageio>=2.35.0",
+    "pyyaml>=6.0.0",
+    "pyoptools",
 ]
 
+[project.urls]
+Homepage = "https://www.hexastorm.com"
+Documentation = "https://hackaday.io/project/21933-open-hardware-fast-high-resolution-laser"
+Repository = "https://github.com/hstarmans/opticaldesign"
 
-[tool.poetry.dependencies]
-python = ">=3.10,<3.12"
-jupyter = "^1.1.1"
-jupyterlab = "^4.2.5"
-pythreejs = "^2.4.2"
-cython = "^3.0.11"
-scipy = ">=1.14.0"
-matplotlib = "^3.9.2"
-pyyaml = "^6.0.2"
-imageio = "^2.35.1"
-sympy = "^1.13.3"
-pyoptools = {git = "https://github.com/hstarmans/pyoptools"}
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.6.0",
+]
+notebook = [
+    "marimo>=0.8.0",
+    "jupyterlab>=4.2.0",
+    "pythreejs>=2.4.2",
+    "jupytext>=1.16.0",
+]
 
+[tool.uv.sources]
+pyoptools = { git = "https://github.com/cihologramas/pyoptools" }
 
-[tool.poetry.dev-dependencies]
+[tool.hatch.build.targets.wheel]
+packages = ["src/prisms"]
 
-[build-system]
-requires = ["poetry-core>=1.0.0", "cython"]
-build-backend = "poetry.core.masonry.api"
+[tool.hatch.metadata]
+allow-direct-references = true

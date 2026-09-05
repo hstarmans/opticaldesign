@@ -1,58 +1,72 @@
-import numpy as np
+import logging
 
+import numpy as np
 from pyoptools.raytrace.component import Component
-from pyoptools.raytrace.surface import Plane
 from pyoptools.raytrace.shape import Rectangular, Triangular
+from pyoptools.raytrace.surface import Plane
+
+logger = logging.getLogger(__name__)
 
 
 class Polygon(Component):
-    '''defines regular polygon prism
+    """Defines a regular polygon prism component.
 
-    Defines component containing a polygon shape
-    The center of mass of the polygon is at the origin
+    The center of mass of the polygon is positioned at the origin.
 
-    sides        -- number of sides
-    height       -- height of polygon
-    inner radius -- inner radius of polygon
-    reflection   -- ray is reflected when it exist the prism
-                    this is used to simulate
-    '''
-    def __init__(self, sides=3, height=3, inner_radius=10, reflection=False, **traits):
+    Parameters:
+        sides        -- number of sides (facets)
+        height       -- height of polygon [mm]
+        inner_radius -- inner radius (apothem) of polygon [mm]
+        reflection   -- whether ray is reflected when it exits the prism
+    """
+
+    def __init__(self, sides=4, height=3, inner_radius=10, reflection=False, **traits):
         if sides < 3:
-            raise Exception("Polygon should have at least 3 sides.")
+            raise ValueError("Polygon should have at least 3 sides.")
         if sides % 2 == 1:
-            print("Polygon needs even number of sides for scanning.")
-        side_length = 2*inner_radius*np.tan(np.pi/sides)
-        Component.__init__(self, **traits)
-        # create a side base shape
-        side = Plane(shape=Rectangular(size=(side_length, height)))
+            logger.warning("Polygon needs an even number of sides for scanning.")
+
+        side_length = 2 * inner_radius * np.tan(np.pi / sides)
+        super().__init__(**traits)
+
+        # Create vertical facet surfaces
         for i in range(sides):
-            angle = 2*np.pi/sides*i
-            center = inner_radius*np.array([np.cos(angle), np.sin(angle)])
-            if (i == 1) and reflection: # laser does not hit at side 0 but side 3
-                side = Plane(shape=Rectangular(size=(side_length, height)),
-                             reflectivity=1)
+            angle = 2 * np.pi / sides * i
+            center = inner_radius * np.array([np.cos(angle), np.sin(angle)])
+            if (i == 1) and reflection:
+                side = Plane(
+                    shape=Rectangular(size=(side_length, height)),
+                    reflectivity=1,
+                )
             else:
                 side = Plane(shape=Rectangular(size=(side_length, height)))
-            self.surflist[f"S{i}"] = (side, (center[0], center[1], 0),
-                                      (np.pi/2, 0, angle+np.pi/2))
-            
-        # create a top/bottom base shape
-        triangle = Plane(shape=Triangular(((0, 0),
-                         (-inner_radius, -side_length/2),
-                         (-inner_radius, side_length/2))))
-        for i in ['bottom', 'height']:
-            surface = len(self.surflist)
-            if i == 'bottom':
-                offset = -height/2
-            else:
-                offset = height/2
-            for i in range(sides):
-                angle = 2*np.pi/sides*i
-                if sides % 2:
-                    offset = 2*np.pi/(sides*2)
-                else:
-                    offset = 0
-                self.surflist[f"S{i+surface}"] = (triangle,
-                                                  (0, 0, offset),
-                                                  (0, 0, angle+offset))
+
+            self.surflist[f"S{i}"] = (
+                side,
+                (float(center[0]), float(center[1]), 0.0),
+                (np.pi / 2, 0.0, angle + np.pi / 2),
+            )
+
+        # Create top and bottom triangular cap surfaces
+        triangle = Plane(
+            shape=Triangular(
+                (
+                    (0.0, 0.0),
+                    (-inner_radius, -side_length / 2),
+                    (-inner_radius, side_length / 2),
+                )
+            )
+        )
+
+        for cap_name in ["bottom", "top"]:
+            z_offset = -height / 2.0 if cap_name == "bottom" else height / 2.0
+            angle_offset = np.pi / sides if (sides % 2 != 0) else 0.0
+
+            for j in range(sides):
+                angle = 2 * np.pi / sides * j
+                surface_key = f"S{len(self.surflist)}"
+                self.surflist[surface_key] = (
+                    triangle,
+                    (0.0, 0.0, z_offset),
+                    (0.0, 0.0, angle + angle_offset),
+                )

@@ -1,59 +1,163 @@
-# Prisms
+# Optical Design & Simulation (Prisms)
 
-Package contains optical similations and calculations for prisms.
-There are two representions;
- - Analytical:  properties of prisms based upon pure math and physics
- - pyOpTools: description of the optical system in [pyOpTools](https://github.com/cihologramas/pyoptools)
+Optical design, analytical modeling, and 3D ray-tracing simulations for the transparent polygon prism laser scanner known as **Hexastorm**.
 
-In the old folder, there is a numerical verification for the Strehl ratio formula;
- - rayOpt: description of the optical system in [rayOpt](https://github.com/jordens/rayopt)
+This package provides the optical calculations used by:
+* **Hexastorm Design**: [github.com/hstarmans/hexastorm_design](https://github.com/hstarmans/hexastorm_design)
+* **Hexastorm FreeCAD Workbench**: [github.com/hstarmans/freecad_hexastorm](https://github.com/hstarmans/freecad_hexastorm)
+* **Hackaday Project**: [hackaday.io/project/21933-open-hardware-transparent-polygon-scanner](https://hackaday.io/project/21933-open-hardware-transparent-polygon-scanner)
+* **Video Walkthrough**: [YouTube Explanation](https://youtu.be/kekMkjqzRjE)
 
-```console
-python3 setup.py develop --user
+---
+
+## Features
+
+1. **Analytical Model (`prisms.analytical`)**
+   * Computes diffraction-limited Gaussian beam waist spot size and Rayleigh range.
+   * Calculates longitudinal and transversal focus shift through rotating polygon facets.
+   * Computes 3rd-order Seidel aberrations (spherical, coma, astigmatism) and Strehl ratio based on Wyant's optical testing formulations.
+   * Analyzes scanline duty cycle, non-uniform sweep velocity, and cross-scan facet-to-datum errors.
+
+2. **Ray-Tracing Simulation (`prisms.system` & `prisms.library`)**
+   * Non-sequential 3D ray tracing using upstream [pyOpTools](https://github.com/cihologramas/pyoptools).
+   * Models N-BK7 polygon prisms, Edmund Optics cylindrical lenses, fold mirrors, and photodiode detection targets.
+   * Automatically determines synchronization photodiode hit angles (`find_object('diode')`) and focal plane positioning.
+
+3. **Modern Interactive Notebooks (`Notebooks/`)**
+   * **Marimo Reactive App**: Launch interactive simulations with live sliders via `uv run marimo edit Notebooks/marimo_plot_system.py`.
+   * **Standard Python / Jupytext**: Compatible with JupyterLab, VS Code, or direct terminal execution.
+
+---
+
+## Installation & Setup
+
+This repository uses [`uv`](https://docs.astral.sh/uv/) for fast, reproducible, and modern dependency management.
+
+### 1. Prerequisites (Eigen3 Headers - Zero Sudo Required)
+
+`pyoptools` compiles Cython/C++ extensions against the header-only C++ Eigen3 library (`<Eigen/Dense>`).
+
+* **Zero-sudo (User Local - Recommended):**
+  Eigen is header-only and can be placed in `~/.local/include/eigen3`:
+  ```bash
+  mkdir -p ~/.local/include/eigen3
+  curl -sL https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz | tar -xz -C ~/.local/include/eigen3 --strip-components=1
+  export EIGEN3_INCLUDE_DIR="$HOME/.local/include/eigen3"
+  ```
+* **System Package (Alternative if you have sudo):**
+  ```bash
+  sudo apt install -y libeigen3-dev
+  ```
+
+### 2. Install Project Environment
+
+Clone the repository and synchronize the environment:
+
+```bash
+# Sync core dependencies and dev/notebook groups
+uv sync --all-groups
 ```
-A jupyter notebook is available in the notebooks folder.
-This can be converted to notebook as follows
-```console
-jupytext --to notebook *.py
+
+To install this package in editable mode in an external project (such as `hexastorm_design`):
+```bash
+uv add --editable /path/to/opticaldesign
 ```
 
-## Install
+---
 
-Install depencies using poetry.
-Pyoptools must be installed via pip  
-'''poetry run python -m pip install git+https://github.com/cihologramas/pyoptools'''  
-The pip install avoids [error](https://github.com/python-poetry/poetry/issues/3744). Another fix would be to
-change pyoptools.  
-Firefox does not work. Renders can only be made via jupyter lab.
+## Running Tests
 
-## Remarks
+Run the complete automated test suite with `pytest`:
 
-### Instruction video
-Optical design is described in the video  
-https://youtu.be/kekMkjqzRjE  
-In the video, this work is combined with
-Hexastorm Design  
-https://github.com/hstarmans/hexastorm_design  
-FreeCAD workbench  
-https://github.com/hstarmans/freecad_hexastorm  
+```bash
+uv run pytest -v
+```
 
-### Limitations model
-G2 lens specs can be found online....  
-  6.33mm diameter, 5.3mm front surface, 4.0mm focal length  
-Working Distance: ~2.4mm from laser diode  
-Several issues  
-    - requires you to know aspheric coefficients AND divergence / sice point  
-    - mitigated by assuming parallel bundle  
+Lint and format code using `ruff`:
 
-### Limitations Pyoptools
- - there is no proper bridge for object from FreeCad to pyoptools
- - first side of mirror is at origin
- - I have problems rotating the in z-direction in the PyThreejs viewer
- - If light hits the prism at an edge corner, it does not know what to do and does not throw an error.
- - cylindrical lenses, do not have side surfaces in pyoptools
- - it is not possible to load cylindrical lenses directly from Edmund's library
+```bash
+uv run ruff check .
+uv run ruff format .
+```
 
-## Links
-[Official site](https://www.hexastorm.com/)  
-[Hackaday page](https://hackaday.io/project/21933-open-hardware-transparent-polygon-scanner)  
-[Reprap article](https://reprap.org/wiki/Transparent_Polygon_Scanning)  
+---
+
+## Interactive Notebooks
+
+### 1. Reactive Notebook with Marimo (Recommended)
+
+Launch the reactive Marimo application:
+
+```bash
+uv run marimo edit Notebooks/marimo_plot_system.py
+```
+
+Or run as a web app:
+
+```bash
+uv run marimo run Notebooks/marimo_plot_system.py
+```
+
+### 2. Standard Script / JupyterLab
+
+You can run the notebook scripts directly via `uv`:
+
+```bash
+uv run python Notebooks/plot_system.py
+uv run python Notebooks/system_compact.py
+```
+
+Or launch JupyterLab:
+
+```bash
+uv run jupyter lab
+```
+
+---
+
+## Mathematical Summary
+
+Key optical relationships implemented in `prisms.analytical`:
+
+* **Gaussian Waist Radius**:
+  `waist = (2 × wavelength / π) × f_numb`
+* **Rayleigh Length**:
+  `rayleigh_length = π × waist² / wavelength`
+* **Longitudinal Focus Shift**:
+  `slong = ((n - 1) / n) × T`
+* **Transversal Focus Shift**:
+  `disp = T × sin(x) × (1 - cos(x) / sqrt(n² - sin²(x)))`
+* **Duty Cycle**:
+  `duty_cycle = max_recommended_angle / max_angle_incidence`
+* **Strehl Ratio**:
+  Derived from wavefront aberration polynomial RMS optical path difference (OPD).
+
+---
+
+## Architecture
+
+```
+opticaldesign/
+├── src/prisms/
+│   ├── __init__.py       # Top-level exports (PrismProperties, PrismScanner, Polygon)
+│   ├── analytical.py     # Closed-form physics formulas, aberrations, and Strehl calculations
+│   ├── library.py        # Custom pyOpTools components (regular Polygon prism)
+│   └── system.py         # Complete optical system layout and ray-tracing routines
+├── Notebooks/
+│   ├── marimo_plot_system.py  # Interactive reactive Marimo notebook
+│   ├── plot_system.py         # Full scanner simulation (py:percent format)
+│   └── system_compact.py      # Compact layout & Fresnel reflection analysis
+├── tests/
+│   ├── test_analytical.py     # Analytical formulas unit tests
+│   ├── test_library.py        # Polygon geometry tests
+│   └── test_system.py         # Ray propagation & diode hit detection tests
+├── old/                       # Archived 2017 RayOpt comparison scripts
+├── pyproject.toml             # Standard PEP 621 configuration managed by uv
+└── uv.lock                    # Fully pinned, reproducible lockfile
+```
+
+---
+
+## License
+
+GPL-3.0-or-later.
