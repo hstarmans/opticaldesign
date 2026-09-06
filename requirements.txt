@@ -4,4 +4,4 @@ sympy>=1.13.0
 matplotlib>=3.8.0
 imageio>=2.35.0
 pyyaml>=6.0.0
-pyoptools @ file:///home/hexastorm/Documents/Python/pyoptools
+pyoptools @ git+https://github.com/hstarmans/pyoptools.git@feature/prisms-ray-tests-and-build

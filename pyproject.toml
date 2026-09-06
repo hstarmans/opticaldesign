@@ -39,7 +39,7 @@ notebook = [
 ]
 
 [tool.uv.sources]
-pyoptools = { path = "/home/hexastorm/Documents/Python/pyoptools", editable = true }
+pyoptools = { git = "https://github.com/hstarmans/pyoptools.git", branch = "feature/prisms-ray-tests-and-build" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/prisms"]
