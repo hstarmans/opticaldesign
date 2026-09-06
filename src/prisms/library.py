@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 from pyoptools.raytrace.component import Component
-from pyoptools.raytrace.shape import Rectangular, Triangular
+from pyoptools.raytrace.shape import Polygon as ShapePolygon, Rectangular
 from pyoptools.raytrace.surface import Plane
 
 logger = logging.getLogger(__name__)
@@ -47,26 +47,25 @@ class Polygon(Component):
                 (np.pi / 2, 0.0, angle + np.pi / 2),
             )
 
-        # Create top and bottom triangular cap surfaces
-        triangle = Plane(
-            shape=Triangular(
-                (
-                    (0.0, 0.0),
-                    (-inner_radius, -side_length / 2),
-                    (-inner_radius, side_length / 2),
-                )
-            )
+        # Compute counter-clockwise vertex coordinates for the regular polygon cross-section
+        r_vertex = inner_radius / np.cos(np.pi / sides)
+        poly_coords = []
+        for i in range(sides):
+            angle = 2 * np.pi / sides * i - np.pi / sides
+            poly_coords.append((r_vertex * np.cos(angle), r_vertex * np.sin(angle)))
+        poly_coords = tuple(poly_coords)
+
+        # Create single watertight bottom and top cap surfaces
+        bottom_cap = Plane(shape=ShapePolygon(coord=poly_coords))
+        top_cap = Plane(shape=ShapePolygon(coord=poly_coords))
+
+        self.surflist[f"S{sides}"] = (
+            bottom_cap,
+            (0.0, 0.0, -height / 2.0),
+            (0.0, 0.0, 0.0),
         )
-
-        for cap_name in ["bottom", "top"]:
-            z_offset = -height / 2.0 if cap_name == "bottom" else height / 2.0
-            angle_offset = np.pi / sides if (sides % 2 != 0) else 0.0
-
-            for j in range(sides):
-                angle = 2 * np.pi / sides * j
-                surface_key = f"S{len(self.surflist)}"
-                self.surflist[surface_key] = (
-                    triangle,
-                    (0.0, 0.0, z_offset),
-                    (0.0, 0.0, angle + angle_offset),
-                )
+        self.surflist[f"S{sides + 1}"] = (
+            top_cap,
+            (0.0, 0.0, height / 2.0),
+            (0.0, 0.0, 0.0),
+        )

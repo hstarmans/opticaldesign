@@ -6,11 +6,14 @@ from prisms.library import Polygon
 def test_polygon_init():
     """Verify polygon prism initialization with 4 sides."""
     poly = Polygon(sides=4, height=3, inner_radius=10)
-    # 4 side facets + 4 bottom cap triangles + 4 top cap triangles = 12 surfaces
-    assert len(poly.surflist) == 12
+    # 4 side facets + 1 bottom cap + 1 top cap = 6 surfaces
+    assert len(poly.surflist) == 6
     # Ensure vertical sides exist
     for i in range(4):
         assert f"S{i}" in poly.surflist
+    # Ensure caps exist
+    assert "S4" in poly.surflist
+    assert "S5" in poly.surflist
 
 
 def test_polygon_reflection():
