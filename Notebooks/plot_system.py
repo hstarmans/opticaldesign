@@ -48,14 +48,14 @@ def _(PrismProperties, mo, np):
 
 @app.cell
 def _(mo):
-    angle_slider = mo.ui.slider(
+    angle_input = mo.ui.slider(
         start=-45,
         stop=45,
         step=1,
         value=-38,
         label="Prism Rotation Angle",
-        show_value=True,
-    )
+        include_input=True,
+    ).form(submit_button_label="Calculate", bordered=False)
     cylinder_toggle = mo.ui.checkbox(value=True, label="Include Cylinders")
     key_rays_toggle = mo.ui.checkbox(value=False, label="Key Boundary Rays")
     camera_view = mo.ui.dropdown(
@@ -68,13 +68,13 @@ def _(mo):
         value="Perspective 3D",
         label="Camera Angle",
     )
-    return angle_slider, camera_view, cylinder_toggle, key_rays_toggle
+    return angle_input, camera_view, cylinder_toggle, key_rays_toggle
 
 
 @app.cell
 def _(
     PrismScanner,
-    angle_slider,
+    angle_input,
     camera_view,
     cylinder_toggle,
     key_rays_toggle,
@@ -84,13 +84,14 @@ def _(
     hit_range = scanner.find_object("diode")
     focal_dist = scanner.distance_between_cylinders() if cylinder_toggle.value else 0.0
 
+    angle_val = angle_input.value if angle_input.value is not None else -38
     is_hit = len(hit_range) == 2 and (
-        hit_range[0] <= angle_slider.value <= hit_range[1]
+        hit_range[0] <= angle_val <= hit_range[1]
     )
     hit_badge = "🟢 Diode illuminated" if is_hit else "⚪ Diode not hit"
 
     controls = mo.hstack(
-        [angle_slider, cylinder_toggle, key_rays_toggle, camera_view],
+        [angle_input, cylinder_toggle, key_rays_toggle, camera_view],
         justify="start",
         align="center",
         gap=2,
@@ -98,7 +99,7 @@ def _(
 
     status_md = mo.md(
         f"""
-        * **Prism Angle:** `{angle_slider.value}°` &nbsp;|&nbsp;
+        * **Prism Angle:** `{angle_val}°` &nbsp;|&nbsp;
         * **Photodiode Status:** {hit_badge} &nbsp;|&nbsp;
         * **Photodiode Hit Window:** `{hit_range}` &nbsp;|&nbsp;
         * **Cylinder Focal Distance:** `{focal_dist:.3f} mm`
@@ -109,7 +110,7 @@ def _(
         fig = scanner.show_key_rays(backend="plotly", camera_eye=camera_view.value)
     else:
         fig = scanner.plot(
-            angle=angle_slider.value,
+            angle=angle_val,
             backend="plotly",
             camera_eye=camera_view.value,
         )
