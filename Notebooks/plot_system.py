@@ -11,7 +11,6 @@ def _(mo):
     Simulate and visualize the optical layout, ray tracing, photodiode hit angles,
     and alignment sensitivity of the Hexastorm prism scanner in real time.
     """)
-    return
 
 
 @app.cell
@@ -25,7 +24,6 @@ def _():
     from prisms.system import PrismScanner
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    logger = logging.getLogger(__name__)
     return PrismProperties, PrismScanner, mo, np
 
 
@@ -46,7 +44,6 @@ def _(PrismProperties, mo, np):
         | **Cross-scan error** | `{props.cross_scan_error() * 1000:.2f} µm` |
         """
     )
-    return
 
 
 @app.cell
@@ -117,12 +114,14 @@ def _(
             camera_eye=camera_view.value,
         )
 
-    mo.vstack([
-        mo.md("### Interactive 3D System View"),
-        controls,
-        status_md,
-        mo.ui.plotly(fig),
-    ])
+    mo.vstack(
+        [
+            mo.md("### Interactive 3D System View"),
+            controls,
+            status_md,
+            mo.ui.plotly(fig),
+        ]
+    )
     return (scanner,)
 
 
@@ -172,7 +171,6 @@ def _(mo, np, scanner):
         * **Z-offset spot shift:** `{norm_z:.4e} mm` ({shift_z})
         """
     )
-    return
 
 
 if __name__ == "__main__":

@@ -82,7 +82,7 @@ class PrismScanner:
             "wavelength": self.wavelength,
         }
 
-        # Default 3D view settings for pythreejs rendering
+        # Default 3D view settings for Plot3D rendering
         self.view_set = {
             "center": (0, 0, 0),
             "size": (150, 150),
@@ -280,7 +280,7 @@ class PrismScanner:
 
         Parameters:
             angle: Prism rotation angle in degrees.
-            backend: 'plotly' (default, modern interactive WebGL) or 'pythreejs' (legacy Jupyter).
+            backend: 'plotly' (default, modern interactive WebGL) or 'auto'.
         """
         self.S.reset()
         self.S.ray_add(self._make_ray())
@@ -316,7 +316,7 @@ class PrismScanner:
             self.set_orientation("prism", rotation=(0, 0, np.radians(ang)), reset=False)
 
     def show_key_rays(self, diode=True, scanline=True, backend="plotly", **kwargs):
-        """Draw key rays and return 3D plot widget (Plotly or pythreejs)."""
+        """Draw key rays and return 3D plot widget (Plotly)."""
         self.draw_key_rays(diode, scanline)
         if backend == "plotly":
             from prisms.viewer import plot_system_plotly
