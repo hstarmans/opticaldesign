@@ -147,13 +147,13 @@ class PrismScanner:
         ccd = CCD()
 
         if self.withcylinder:
-            self.position_diode = (35, 31, 0)
+            self.position_diode = (35, 25, 0)
             complist = [
                 (cl_lens1, (0, -29, 0), (-0.5 * pi, 0, 0)),
                 (prism, (0, 0, 0), (0, 0, 0)),
-                (cl_lens2, (-6, 31, 0), (0, -0.5 * pi, -0.5 * pi)),
+                (cl_lens2, (6, 31, 0), (0, -0.5 * pi, -0.5 * pi)),
                 (ccd, (0, 50, 0), (0.5 * pi, 0.5 * pi, 0)),
-                (m1, (11, 31, 0), (0.5 * pi, 0.5 * pi, 0.25 * pi + pi)),
+                (m1, (-11, 25, 0), (0.5 * pi, 0.5 * pi, 0.25 * pi + pi)),
                 (pd, self.position_diode, (0.5 * pi, 0.5 * pi, 0.5 * pi)),
             ]
         else:
@@ -161,7 +161,7 @@ class PrismScanner:
             complist = [
                 (ideal_lens, (0, -26, 0), (0.5 * pi, 0, 0)),
                 (prism, (0, 0, 0), (0, 0, 0)),
-                (m1, (11, 38, 0), (0.5 * pi, 0.5 * pi, 0.25 * pi + pi)),
+                (m1, (-11, 38, 0), (0.5 * pi, 0.5 * pi, 0.25 * pi + pi)),
                 (pd, self.position_diode, (0.5 * pi, 0.5 * pi, 0.5 * pi)),
             ]
 

@@ -230,16 +230,12 @@ class PrismProperties:
             "The cross scan error is %.2f microns", self.cross_scan_error() * 1000
         )
 
-    def strehl_ratio(self, utilt, verbose=False):
-        """Returns the Strehl ratio of the optical system based on 3rd order Seidel aberrations.
+    def lambda_opd_rms(self, utilt):
+        """Returns the optical path difference (OPD) RMS in units of wavelength (λ).
 
-        Aberrations from Wyant:
-            Spherical aberration (Wyant p. 42 eq 72):
-                sabr = -T / f_numb⁴ × ((n² - 1) / (128 × n³))
-            Coma (Wyant p. 44 eq 75):
-                coma = -T × utilt / f_numb³ × ((n² - 1) / (16 × n³))
-            Astigmatism (Wyant p. 45 eq 77):
-                astig = -T × utilt² / f_numb² × ((n² - 1) / (8 × n³))
+        Reference:
+            James C. Wyant: Basic Wavefront Aberration Theory for Optical Metrology
+            http://rohr.aiax.de/BasicAberrationsandOpticalTesting.pdf (page 37, equation 62).
         """
         params = self.params
         wavelength = params["wavelength"]
@@ -276,6 +272,22 @@ class PrismProperties:
         rms = np.sqrt(max(0.0, var))
         # Convert lambda RMS from [mm] to wavelength units
         lambdarms = rms / (wavelength * 1e-6)
+        return float(lambdarms)
+
+    def strehl_ratio(self, utilt, verbose=False):
+        """Returns the Strehl ratio of the optical system based on 3rd order Seidel aberrations.
+
+        Aberrations from Wyant:
+            Spherical aberration (Wyant p. 42 eq 72):
+                sabr = -T / f_numb⁴ × ((n² - 1) / (128 × n³))
+            Coma (Wyant p. 44 eq 75):
+                coma = -T × utilt / f_numb³ × ((n² - 1) / (16 × n³))
+            Astigmatism (Wyant p. 45 eq 77):
+                astig = -T × utilt² / f_numb² × ((n² - 1) / (8 × n³))
+            Strehl ratio (Wyant p. 39 eq 67):
+                rstrehl = 1 - (2π × lambdarms)² + (2π × lambdarms)⁴ / 2
+        """
+        lambdarms = self.lambda_opd_rms(utilt)
 
         if verbose:
             logger.info("The lambda OPD RMS is %6f", lambdarms)

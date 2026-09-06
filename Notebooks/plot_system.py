@@ -52,7 +52,7 @@ def _(mo):
         start=-45,
         stop=45,
         step=1,
-        value=-38,
+        value=38,
         label="Prism Rotation Angle",
         include_input=True,
     ).form(submit_button_label="Calculate", bordered=False)
@@ -84,10 +84,8 @@ def _(
     hit_range = scanner.find_object("diode")
     focal_dist = scanner.distance_between_cylinders() if cylinder_toggle.value else 0.0
 
-    angle_val = angle_input.value if angle_input.value is not None else -38
-    is_hit = len(hit_range) == 2 and (
-        hit_range[0] <= angle_val <= hit_range[1]
-    )
+    angle_val = angle_input.value if angle_input.value is not None else 38
+    is_hit = len(hit_range) == 2 and (hit_range[0] <= angle_val <= hit_range[1])
     hit_badge = "🟢 Diode illuminated" if is_hit else "⚪ Diode not hit"
 
     controls = mo.hstack(
@@ -133,28 +131,28 @@ def _(mo, np, scanner):
     delta_val = 0.2
     scanner.set_orientation("prism", position=initial_pos.tolist())
     nominal = scanner.focal_point(
-        cyllens1=True, angle=-42, simple=False, diode=True, plot=False
+        cyllens1=True, angle=42, simple=False, diode=True, plot=False
     )
 
     scanner.set_orientation(
         "prism", position=(initial_pos + np.array([delta_val, 0, 0])).tolist()
     )
     shift_x = nominal - scanner.focal_point(
-        cyllens1=True, angle=-42, simple=False, diode=True, plot=False
+        cyllens1=True, angle=42, simple=False, diode=True, plot=False
     )
 
     scanner.set_orientation(
         "prism", position=(initial_pos + np.array([0, delta_val, 0])).tolist()
     )
     shift_y = nominal - scanner.focal_point(
-        cyllens1=True, angle=-42, simple=False, diode=True, plot=False
+        cyllens1=True, angle=42, simple=False, diode=True, plot=False
     )
 
     scanner.set_orientation(
         "prism", position=(initial_pos + np.array([0, 0, delta_val])).tolist()
     )
     shift_z = nominal - scanner.focal_point(
-        cyllens1=True, angle=-42, simple=False, diode=True, plot=False
+        cyllens1=True, angle=42, simple=False, diode=True, plot=False
     )
 
     # Reset orientation

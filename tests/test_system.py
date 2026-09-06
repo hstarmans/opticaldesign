@@ -24,9 +24,9 @@ def test_find_object_diode():
     p = PrismScanner(withcylinder=True)
     angles = p.find_object("diode")
     assert len(angles) == 2
-    # The photodiode is positioned to be hit around -44.8 to -41.3 degrees
-    assert angles[0] == pytest.approx(-44.8, abs=0.5)
-    assert angles[1] == pytest.approx(-41.3, abs=0.5)
+    # The photodiode is positioned to be hit around 41.3 to 44.9 degrees
+    assert angles[0] == pytest.approx(41.3, abs=0.5)
+    assert angles[1] == pytest.approx(44.9, abs=0.5)
 
 
 def test_distance_between_cylinders():

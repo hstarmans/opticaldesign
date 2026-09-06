@@ -2,7 +2,8 @@ import logging
 
 import numpy as np
 from pyoptools.raytrace.component import Component
-from pyoptools.raytrace.shape import Polygon as ShapePolygon, Rectangular
+from pyoptools.raytrace.shape import Polygon as ShapePolygon
+from pyoptools.raytrace.shape import Rectangular
 from pyoptools.raytrace.surface import Plane
 
 logger = logging.getLogger(__name__)

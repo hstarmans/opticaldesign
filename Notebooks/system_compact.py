@@ -12,7 +12,6 @@ def _(mo):
     compute Snell's law refraction and Fresnel reflection coefficients at optical boundaries,
     and assess alignment sensitivity.
     """)
-    return
 
 
 @app.cell
@@ -66,7 +65,6 @@ def _(critical_angle, fresnel_coefficients, mo, np):
         | **Average Fresnel Reflectance** | `{refl_power * 100:.2f} %` | `R_avg = 0.5 × (|r_s|² + |r_p|²)` at `{np.degrees(theta_fresnel_rad):.1f}°` |
         """
     )
-    return
 
 
 @app.cell
@@ -75,7 +73,7 @@ def _(mo):
         start=-45,
         stop=45,
         step=1,
-        value=-35,
+        value=38,
         label="Prism Rotation Angle",
         include_input=True,
     ).form(submit_button_label="Calculate", bordered=False)
@@ -105,10 +103,8 @@ def _(
     scanner = PrismScanner(compact=True)
     hit_range = scanner.find_object("diode")
 
-    angle_val = angle_input.value if angle_input.value is not None else -35
-    is_hit = len(hit_range) == 2 and (
-        hit_range[0] <= angle_val <= hit_range[1]
-    )
+    angle_val = angle_input.value if angle_input.value is not None else 38
+    is_hit = len(hit_range) == 2 and (hit_range[0] <= angle_val <= hit_range[1])
     hit_badge = "🟢 Diode illuminated" if is_hit else "⚪ Diode not hit"
 
     controls = mo.hstack(
@@ -200,7 +196,6 @@ def _(mo, np, scanner):
         * **Z-offset spot displacement:** `{norm_z * 1000:.3f} µm` (vector: `[{diff_z[0]:.2e}, {diff_z[1]:.2e}, {diff_z[2]:.2e}]`)
         """
     )
-    return
 
 
 if __name__ == "__main__":

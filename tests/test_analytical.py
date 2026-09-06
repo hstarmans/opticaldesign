@@ -95,3 +95,35 @@ def test_cross_scan_error():
     cross_err = p.cross_scan_error(focal_distance=35)
     # Cross scan error should be around 0.0054 mm (5.4 microns)
     assert cross_err == pytest.approx(0.0054, rel=1e-1)
+
+
+def test_wyant_benchmark_table():
+    """Verify Wyant literature benchmark values for lambda OPD RMS.
+
+    Reference:
+        James C. Wyant: Basic Wavefront Aberration Theory for Optical Metrology
+        http://rohr.aiax.de/BasicAberrationsandOpticalTesting.pdf (page 37, equation 62).
+
+    Table values (from historical benchmark):
+        - Tilt angle 10°: ~ 0.005 lambda RMS
+        - Tilt angle 24°: ~ 0.032 lambda RMS
+        - Tilt angle 30°: ~ 0.050 lambda RMS
+    """
+    p = PrismProperties(
+        {
+            "n": 1.53,
+            "facets": 4,
+            "wavelength": 405,
+            "T": 35,
+            "f_length": 90,
+            "d_bundle": 1.2,
+            "rot_hz": 350,
+            "apex_angle": 1 / 60,
+        }
+    )
+    # Tilt angle: 10 deg -> 0.0055 lambda RMS (~ 0.005)
+    assert p.lambda_opd_rms(np.radians(10)) == pytest.approx(0.0055, rel=1e-2)
+    # Tilt angle: 24 deg -> 0.0315 lambda RMS (~ 0.032)
+    assert p.lambda_opd_rms(np.radians(24)) == pytest.approx(0.0315, rel=1e-2)
+    # Tilt angle: 30 deg -> 0.0493 lambda RMS (~ 0.050)
+    assert p.lambda_opd_rms(np.radians(30)) == pytest.approx(0.0493, rel=1e-2)
