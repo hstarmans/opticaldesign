@@ -1742,7 +1742,7 @@ requires-dist = [
     { name = "matplotlib", specifier = ">=3.8.0" },
     { name = "numpy", specifier = ">=1.26.0" },
     { name = "plotly", specifier = ">=7.0.0" },
-    { name = "pyoptools", git = "https://github.com/cihologramas/pyoptools" },
+    { name = "pyoptools", editable = "../pyoptools" },
     { name = "pyyaml", specifier = ">=6.0.0" },
     { name = "scipy", specifier = ">=1.14.0" },
     { name = "sympy", specifier = ">=1.13.0" },
@@ -1850,8 +1850,7 @@ wheels = [
 
 [[package]]
 name = "pyoptools"
-version = "0.3.8"
-source = { git = "https://github.com/cihologramas/pyoptools#8587a5f76a7d76bfd00d2eada486ba8767fda508" }
+source = { editable = "../pyoptools" }
 dependencies = [
     { name = "imageio" },
     { name = "importlib-resources" },
@@ -1862,10 +1861,35 @@ dependencies = [
     { name = "numpy", version = "2.5.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "orjson" },
     { name = "pillow" },
+    { name = "plotly" },
     { name = "pyyaml" },
     { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "imageio", specifier = ">=2.9.0" },
+    { name = "importlib-resources", specifier = ">=3.3.0" },
+    { name = "matplotlib", specifier = ">=3.3.1" },
+    { name = "numpy", specifier = ">=1.26.2" },
+    { name = "orjson", specifier = ">=3.10.7" },
+    { name = "pillow", specifier = ">=10.0.1" },
+    { name = "plotly", specifier = ">=5.0.0" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=8.2.1" },
+    { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=5.0.0" },
+    { name = "pyyaml", specifier = ">=5.3.1" },
+    { name = "scipy", specifier = ">=1.5.2" },
+]
+provides-extras = ["test"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "cython-lint", specifier = ">=0.18.0" },
+    { name = "pep8", specifier = ">=1.7.1" },
+    { name = "pycodestyle", specifier = ">=2.14.0" },
+    { name = "setuptools", specifier = ">=80.9.0" },
 ]
 
 [[package]]

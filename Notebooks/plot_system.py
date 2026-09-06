@@ -1,22 +1,21 @@
 import marimo
 
-__generated_with = "0.24.0"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
-def __(mo):
-    mo.md(
-        r"""
-        # Hexastorm Polygon Prism Scanner - Interactive Simulation
-        Simulate and visualize the optical layout, ray tracing, photodiode hit angles,
-        and alignment sensitivity of the Hexastorm prism scanner in real time.
-        """
-    )
+def _(mo):
+    mo.md(r"""
+    # Hexastorm Polygon Prism Scanner - Interactive Simulation
+    Simulate and visualize the optical layout, ray tracing, photodiode hit angles,
+    and alignment sensitivity of the Hexastorm prism scanner in real time.
+    """)
+    return
 
 
 @app.cell
-def __():
+def _():
     import logging
 
     import marimo as mo
@@ -27,11 +26,11 @@ def __():
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     logger = logging.getLogger(__name__)
-    return PrismProperties, PrismScanner, logger, mo, np
+    return PrismProperties, PrismScanner, mo, np
 
 
 @app.cell
-def __(PrismProperties, mo, np):
+def _(PrismProperties, mo, np):
     props = PrismProperties()
     deg_val = np.degrees(props.max_recommended_angle())
     mo.md(
@@ -47,11 +46,11 @@ def __(PrismProperties, mo, np):
         | **Cross-scan error** | `{props.cross_scan_error() * 1000:.2f} µm` |
         """
     )
-    return deg_val, props
+    return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     angle_slider = mo.ui.slider(
         start=-45,
         stop=45,
@@ -76,7 +75,7 @@ def __(mo):
 
 
 @app.cell
-def __(
+def _(
     PrismScanner,
     angle_slider,
     camera_view,
@@ -124,11 +123,11 @@ def __(
         status_md,
         mo.ui.plotly(fig),
     ])
-    return fig, focal_dist, hit_badge, hit_range, is_hit, scanner, status_md
+    return (scanner,)
 
 
 @app.cell
-def __(mo, np, scanner):
+def _(mo, np, scanner):
     # Sensitivity analysis: 0.2 mm offset in X, Y, Z
     initial_pos = np.array([-35.0, 0.0, 0.0])
     delta_val = 0.2
@@ -173,17 +172,7 @@ def __(mo, np, scanner):
         * **Z-offset spot shift:** `{norm_z:.4e} mm` ({shift_z})
         """
     )
-    return (
-        delta_val,
-        initial_pos,
-        nominal,
-        norm_x,
-        norm_y,
-        norm_z,
-        shift_x,
-        shift_y,
-        shift_z,
-    )
+    return
 
 
 if __name__ == "__main__":
