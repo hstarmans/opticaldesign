@@ -1806,8 +1806,8 @@ wheels = [
 
 [[package]]
 name = "pyoptools"
-version = "0.1.2.dev230+g6b8717fd9"
-source = { git = "https://github.com/hstarmans/pyoptools.git?branch=feature%2Fprisms-ray-tests-and-build#6b8717fd975e3fa5a7a2d71f85a16ac6366146ab" }
+version = "0.1.2.dev240+g212ea12b0"
+source = { git = "https://github.com/hstarmans/pyoptools.git?branch=feature%2Fprisms-ray-tests-and-build#212ea12b0459f064ab0b655ade74d75d4883c083" }
 dependencies = [
     { name = "imageio" },
     { name = "importlib-resources" },
