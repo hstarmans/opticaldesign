@@ -4,7 +4,6 @@ Optical design, analytical modeling, and 3D ray-tracing simulations for the lase
 
 This package provides the optical calculations used by:
 * **Hexastorm Design**: [github.com/hstarmans/hexastorm_design](https://github.com/hstarmans/hexastorm_design)
-* **Hexastorm FreeCAD Workbench**: [github.com/hstarmans/freecad_hexastorm](https://github.com/hstarmans/freecad_hexastorm)
 * **Hackaday Project**: [hackaday.io/project/21933-open-hardware-transparent-polygon-scanner](https://hackaday.io/project/21933-open-hardware-transparent-polygon-scanner)
 * **RepRap Project**: [reprap.org/wiki/Open_hardware_fast_high_resolution_LASER](https://reprap.org/wiki/Open_hardware_fast_high_resolution_LASER)
 * **Video Walkthrough**: [YouTube Explanation](https://youtu.be/kekMkjqzRjE)
@@ -47,7 +46,17 @@ This package provides the optical calculations used by:
    * Models N-BK7 polygon prisms, Edmund Optics cylindrical lenses, fold mirrors, and photodiode detection targets.
    * Automatically determines synchronization photodiode hit angles (`find_object('diode')`) and focal plane positioning.
 
-3. **Modern Interactive Notebooks (`Notebooks/`)**
+3. **Live CAD Optics Verification (`prisms.cad_verifier`)**
+   * Connects to a running FreeCAD session live via XML-RPC (port 9875 / FreeCAD MCP).
+   * Automatically extracts global transforms of optical components (`lenstube`, `CLens1`, `prism`, `CLens2`, `mirror`, `photodiode`).
+   * Validates mechanical alignment against optical tolerances (laser axis alignment, cylinder lens centering, confocal focal plane distance).
+   * Pushes exact 3D ray compounds (405 nm violet laser) back into the active FreeCAD document (`Simulation/Rays`).
+   * Run with:
+     ```bash
+     uv run python -m prisms.cad_verifier
+     ```
+
+4. **Modern Interactive Notebooks (`Notebooks/`)**
    * **Marimo Reactive Apps**: Launch interactive simulations with live sliders via `uv run marimo edit Notebooks/plot_system.py` or `uv run marimo edit Notebooks/system_compact.py`.
    * **Universal Plotly 3D Views**: Hardware-accelerated WebGL visualization of rays and optical components.
 

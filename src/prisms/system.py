@@ -359,19 +359,20 @@ class PrismScanner:
         low = float(min(hit_angles))
         high = float(max(hit_angles))
 
-        refining = True
-        while refining:
+        refining_low = True
+        while refining_low and low > -90.0:
             self.set_orientation("prism", rotation=(0, 0, np.radians(low - 0.1)))
             if _target_is_hit(target):
                 low -= 0.1
             else:
-                refining = False
+                refining_low = False
 
+        refining_high = True
+        while refining_high and high < 90.0:
             self.set_orientation("prism", rotation=(0, 0, np.radians(high + 0.1)))
             if _target_is_hit(target):
                 high += 0.1
-                refining = True
             else:
-                refining = False
+                refining_high = False
 
-        return [low, high]
+        return [round(low, 2), round(high, 2)]

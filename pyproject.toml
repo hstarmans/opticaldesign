@@ -21,6 +21,7 @@ dependencies = [
     "pyyaml>=6.0.0",
     "pyoptools",
     "plotly>=7.0.0",
+    "marimo>=0.24.0",
 ]
 
 [project.urls]
@@ -39,7 +40,7 @@ notebook = [
 ]
 
 [tool.uv.sources]
-pyoptools = { git = "https://github.com/hstarmans/pyoptools.git", branch = "feature/prisms-ray-tests-and-build" }
+pyoptools = { git = "https://github.com/cihologramas/pyoptools.git", branch = "master" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/prisms"]
