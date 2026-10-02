@@ -12,6 +12,8 @@ import logging
 import xmlrpc.client
 from typing import Any, ClassVar
 
+import numpy as np
+
 import prisms.system
 
 logger = logging.getLogger(__name__)
@@ -219,7 +221,7 @@ def _freecad_extract_positions(payload_str: str) -> None:
 
 
 def _freecad_push_rays(payload_str: str) -> None:
-    """Worker executed inside FreeCAD process to push ray line segments into FreeCAD."""
+    """Worker executed inside FreeCAD process to push ray line segments and focal marks into FreeCAD."""
     import json
 
     # pyrefly: ignore [missing-import]
@@ -231,6 +233,7 @@ def _freecad_push_rays(payload_str: str) -> None:
     payload = json.loads(payload_str)
     doc_name = payload["doc_name"]
     segments = payload["segments"]
+    focal_marks = payload.get("focal_marks", [])
 
     doc = App.getDocument(doc_name)
     if not doc:
@@ -261,11 +264,33 @@ def _freecad_push_rays(payload_str: str) -> None:
             ray_feat.ViewObject.LineWidth = 3.0
         rays_grp.addObject(ray_feat)
 
-    # Ensure legacy ray groups are hidden to avoid visual duplication
+    focal_lines = [
+        Part.makeLine(App.Base.Vector(*s[0]), App.Base.Vector(*s[1]))
+        for s in focal_marks
+    ]
+    if focal_lines:
+        focal_compound = Part.makeCompound(focal_lines)
+        focal_feat = doc.addObject("Part::Feature", "HexastormFocalMarks")
+        focal_feat.Label = "HexastormFocalMarks"
+        focal_feat.Shape = focal_compound
+        if hasattr(focal_feat, "ViewObject") and focal_feat.ViewObject:
+            focal_feat.ViewObject.LineColor = (0.0, 0.0, 0.0, 1.0)
+            focal_feat.ViewObject.LineWidth = 4.0
+        rays_grp.addObject(focal_feat)
+
+    # Ensure legacy ray groups and their child objects are hidden to avoid visual duplication
     for legacy in ["Rays005", "Rays006"]:
         lo = doc.getObject(legacy)
         if lo:
-            lo.Visibility = False
+            if hasattr(lo, "Visibility"):
+                lo.Visibility = False
+            if hasattr(lo, "ViewObject") and lo.ViewObject:
+                lo.ViewObject.Visibility = False
+            for child in getattr(lo, "Group", []):
+                if hasattr(child, "Visibility"):
+                    child.Visibility = False
+                if hasattr(child, "ViewObject") and child.ViewObject:
+                    child.ViewObject.Visibility = False
 
     doc.recompute()
     print("PUSH_SUCCESS")
@@ -381,8 +406,17 @@ class CadOpticsVerifier:
             if (diode_x**2 + diode_y**2) > 100.0:
                 PP.set_orientation("diode", position=[diode_x, diode_y, 0])
 
-        f1 = float(PP.focal_point(cyllens1=True))
-        f2 = float(PP.focal_point(cyllens1=False))
+        if laser_pos and prism_pos:
+            PP.ray_prop["pos"] = [
+                laser_pos[0] - prism_pos[0],
+                laser_pos[1] - prism_pos[1],
+                0.0,
+            ]
+
+        f1_vec = PP.focal_point(cyllens1=True, simple=False)
+        f2_vec = PP.focal_point(cyllens1=False, simple=False)
+        f1 = float(f1_vec[1])
+        f2 = float(f2_vec[1])
         delta_f = f1 - f2
         focal_ok = abs(delta_f) < 0.1
         results["focal"]["cl1_focal_x"] = f1
@@ -390,13 +424,26 @@ class CadOpticsVerifier:
         results["focal"]["delta_f"] = delta_f
         results["focal"]["confocal_pass"] = focal_ok
 
+        laser_h = cad_pos.get("laser_height", 13.0)
+        offset_xyz = [
+            prism_pos[0] if prism_pos else 0.0,
+            prism_pos[1] if prism_pos else 0.0,
+            laser_h,
+        ]
+        scan_focal = [
+            float(f1_vec[0] + offset_xyz[0]),
+            float(f1_vec[1] + offset_xyz[1]),
+            float(offset_xyz[2]),
+        ]
+        results["focal"]["scan_focal_point"] = [round(c, 3) for c in scan_focal]
+
         if not focal_ok:
             direction = "decrease" if delta_f > 0 else "increase"
             results["recommendations"].append(
                 f"Distance between CLens2 and CLens1 should {direction} by {abs(delta_f):.2f} mm."
             )
 
-        # 4. Photodiode hit angle range
+        # 4. Photodiode hit angle range & mirror focal point
         hit_angles = PP.find_object("diode")
         if hit_angles:
             results["diode"]["hit"] = True
@@ -404,6 +451,47 @@ class CadOpticsVerifier:
                 float(hit_angles[0]),
                 float(hit_angles[1]),
             ]
+
+            # Find nominal angle hitting center of photodiode
+            target_diode_y = (
+                (diode_pos[1] - prism_pos[1]) if (diode_pos and prism_pos) else 24.08
+            )
+            best_angle = (hit_angles[0] + hit_angles[1]) / 2.0
+            best_diff = float("inf")
+            for test_ang in np.linspace(hit_angles[0], hit_angles[1], 15):
+                PP.S.reset()
+                PP.set_orientation("prism", rotation=(0, 0, np.radians(test_ang)))
+                r = PP._make_ray()
+                PP.S.ray_add(r)
+                PP.S.propagate()
+                fr = r.get_final_rays()
+                if fr:
+                    pos = _get_ray_attr(fr[0], "origin", "pos")
+                    if pos[0] >= 20.0:  # reached diode
+                        diff = abs(pos[1] - target_diode_y)
+                        if diff < best_diff:
+                            best_diff = diff
+                            best_angle = float(test_ang)
+
+            results["diode"]["trigger_angle"] = round(best_angle, 2)
+
+            # Mirror reflection path physically bypasses CL2 on the way to the photodiode.
+            # Temporarily exclude CL2 to prevent mathematical bounding-box clipping in pyoptools.
+            cl2_saved = PP.S.complist[PP.naming["CL2"]]
+            PP.S.complist[PP.naming["CL2"]] = (
+                cl2_saved[0],
+                (1000.0, 1000.0, 1000.0),
+                cl2_saved[2],
+            )
+            f_mirror_vec = PP.focal_point(cyllens1=True, angle=best_angle, simple=False)
+            PP.S.complist[PP.naming["CL2"]] = cl2_saved
+
+            mirror_focal = [
+                float(f_mirror_vec[0] + offset_xyz[0]),
+                float(f_mirror_vec[1] + offset_xyz[1]),
+                float(offset_xyz[2]),
+            ]
+            results["focal"]["mirror_focal_point"] = [round(c, 3) for c in mirror_focal]
         else:
             results["diode"]["hit"] = False
             results["diode"]["angle_range"] = None
@@ -411,14 +499,8 @@ class CadOpticsVerifier:
                 "Photodiode is NOT hit by the laser at current orientation!"
             )
 
-        # 5. Push 3D Rays to FreeCAD
+        # 5. Push 3D Rays & Focal Marks to FreeCAD
         if update_cad_rays:
-            laser_h = cad_pos.get("laser_height", 13.0)
-            offset_xyz = [
-                prism_pos[0] if prism_pos else 0.0,
-                prism_pos[1] if prism_pos else 0.0,
-                laser_h,
-            ]
             if laser_pos and prism_pos:
                 PP.ray_prop["pos"] = [
                     laser_pos[0] - prism_pos[0],
@@ -427,25 +509,54 @@ class CadOpticsVerifier:
                 ]
 
             PP.draw_key_rays(scanline=True, diode=True)
+            if hit_angles and "trigger_angle" in results["diode"]:
+                # Add central nominal diode ray to key rays
+                PP.set_orientation(
+                    "prism",
+                    rotation=(0, 0, np.radians(results["diode"]["trigger_angle"])),
+                    reset=False,
+                )
+
             segments = []
             for ray in PP.S.prop_ray:
                 segments.extend(extract_ray_segments(ray, z_offset=offset_xyz))
 
-            self._push_rays_to_freecad(segments)
+            # Dynamic focal marks (4.0 mm tick lines)
+            focal_marks = [
+                [
+                    [scan_focal[0] - 2.0, scan_focal[1], scan_focal[2]],
+                    [scan_focal[0] + 2.0, scan_focal[1], scan_focal[2]],
+                ]
+            ]
+            if hit_angles and "mirror_focal_point" in results["focal"]:
+                mf = results["focal"]["mirror_focal_point"]
+                focal_marks.append(
+                    [
+                        [mf[0], mf[1] - 2.0, mf[2]],
+                        [mf[0], mf[1] + 2.0, mf[2]],
+                    ]
+                )
+
+            results["focal_marks"] = focal_marks
+            self._push_rays_to_freecad(segments, focal_marks=focal_marks)
             results["rays_pushed_count"] = len(segments)
+            results["focal_marks_pushed_count"] = len(focal_marks)
 
         return results
 
     def _push_rays_to_freecad(
-        self, segments: list[tuple[list[float], list[float]]]
+        self,
+        segments: list[tuple[list[float], list[float]]],
+        focal_marks: list[tuple[list[float], list[float]]] | None = None,
     ) -> None:
-        """Push line segments to FreeCAD as a Part compound in Simulation/Rays."""
+        """Push line segments and focal marks to FreeCAD as Part compounds in Simulation/Rays."""
         client = self.get_client()
         res = _run_in_freecad(
             client,
             _freecad_push_rays,
             doc_name=self.doc_name,
             segments=segments,
+            focal_marks=focal_marks or [],
         )
         if "PUSH_SUCCESS" not in res.get("message", ""):
             logger.warning("Failed to push rays to FreeCAD: %s", res)
@@ -494,12 +605,27 @@ class CadOpticsVerifier:
         print(
             f"   • Focal Distance Mismatch (Δf)    : {focal.get('delta_f', 0.0):+.2f} mm  [{status_focal}]"
         )
+        if "scan_focal_point" in focal:
+            sf = focal["scan_focal_point"]
+            print(
+                f"   • Scanline Focal Location (CAD)   : [X = {sf[0]:.2f}, Y = {sf[1]:.2f}, Z = {sf[2]:.2f}] mm"
+            )
+        if "mirror_focal_point" in focal:
+            mf = focal["mirror_focal_point"]
+            print(
+                f"   • Mirror Reflection Focal (CAD)   : [X = {mf[0]:.2f}, Y = {mf[1]:.2f}, Z = {mf[2]:.2f}] mm"
+            )
 
         print("\n4. Photodiode Trigger Detection:")
         if diode.get("hit"):
             rng = diode.get("angle_range", [0, 0])
+            trig_info = (
+                f"  (Trigger Angle: {diode['trigger_angle']:.2f}°)"
+                if "trigger_angle" in diode
+                else ""
+            )
             print(
-                f"   • Diode Trigger Window            : {rng[0]:.2f}° to {rng[1]:.2f}°  [HIT DETECTED]"
+                f"   • Diode Trigger Window            : {rng[0]:.2f}° to {rng[1]:.2f}°{trig_info}  [HIT DETECTED]"
             )
         else:
             print(
@@ -520,6 +646,10 @@ class CadOpticsVerifier:
             print(
                 f"   • Pushed {results['rays_pushed_count']} key ray segments to 'Simulation/Rays'."
             )
+            if "focal_marks_pushed_count" in results:
+                print(
+                    f"   • Pushed {results['focal_marks_pushed_count']} focal location tick marks to 'Simulation/Rays' (HexastormFocalMarks)."
+                )
 
         print("=" * 55 + "\n")
 

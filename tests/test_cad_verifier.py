@@ -34,3 +34,7 @@ def test_verifier_mocked_alignment():
         assert results["alignment"]["laser_pass"] is True
         assert results["alignment"]["cl1_pass"] is True
         assert "cl1_focal_x" in results["focal"]
+        assert "scan_focal_point" in results["focal"]
+        assert "focal_marks" in results
+        assert len(results["focal_marks"]) >= 1
+        assert len(results["focal_marks"][0]) == 2

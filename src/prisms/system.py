@@ -188,13 +188,16 @@ class PrismScanner:
         self.S.complist[self.naming[comp]] = (comp_obj, new_pos, new_rot)
 
         # If cylinder 2 is moved, update CCD position to new focal point
-        if comp == "CL2" and position is not None:
-            new_ccd_pos = list(new_pos)
-            new_ccd_pos[0] = self.focal_point(cyllens1=False)
+        if comp == "CL2" and position is not None and "ccd" in self.naming:
+            f_vec = self.focal_point(cyllens1=False, simple=False)
             ccd_target = self.S.complist[self.naming["ccd"]]
+            if self.withcylinder:
+                new_ccd_pos = (0.0, float(f_vec[1]), 0.0)
+            else:
+                new_ccd_pos = (float(f_vec[0]), 0.0, 0.0)
             self.S.complist[self.naming["ccd"]] = (
                 ccd_target[0],
-                tuple(new_ccd_pos),
+                new_ccd_pos,
                 ccd_target[2],
             )
         if comp == "CL2" and rotation is not None:
@@ -245,25 +248,35 @@ class PrismScanner:
             self.S.propagate()
             return ray1, ray2
 
-        ray1, ray2 = trace_pair()
+        # Temporarily isolate CCD so it never intercepts rays during focal point determination
+        old_ccd = None
+        if "ccd" in self.naming and self.naming["ccd"] in self.S.complist:
+            old_ccd = self.S.complist[self.naming["ccd"]]
+            del self.S.complist[self.naming["ccd"]]
 
-        final_rays_1 = ray1.get_final_rays()
-        final_rays_2 = ray2.get_final_rays()
-        if not final_rays_1 or not final_rays_2:
-            raise RuntimeError("Rays did not reach final optical interface")
-
-        focal_coords = nearest_points(final_rays_1[0], final_rays_2[0])[0]
-
-        if diode:
-            self.position_diode = focal_coords
-            self.set_orientation("diode", position=self.position_diode)
+        try:
             ray1, ray2 = trace_pair()
 
-        dist = focal_coords[0] if simple else focal_coords
+            final_rays_1 = ray1.get_final_rays()
+            final_rays_2 = ray2.get_final_rays()
+            if not final_rays_1 or not final_rays_2:
+                raise RuntimeError("Rays did not reach final optical interface")
 
-        if plot:
-            return Plot3D(self.S, **self.view_set)
-        return dist
+            focal_coords = nearest_points(final_rays_1[0], final_rays_2[0])[0]
+
+            if diode:
+                self.position_diode = focal_coords
+                self.set_orientation("diode", position=self.position_diode)
+                ray1, ray2 = trace_pair()
+
+            dist = focal_coords[0] if simple else focal_coords
+
+            if plot:
+                return Plot3D(self.S, **self.view_set)
+            return dist
+        finally:
+            if old_ccd is not None:
+                self.S.complist[self.naming["ccd"]] = old_ccd
 
     def save_system(self, fname):
         """Save the optical system and chief ray properties to disk."""
